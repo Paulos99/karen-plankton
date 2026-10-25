@@ -122,24 +122,32 @@ let history=[],lastTurn=0,lastLat=null;
 const sleep=(ms,sig)=>new Promise(r=>{const t=setTimeout(r,ms);sig&&sig.addEventListener('abort',()=>{clearTimeout(t);r()})});
 function newTurn(){stop(false);const a=new AbortController();busy=a;return a.signal}
 function showSubs(t){const s=$('#subs');s.hidden=!cfg.subs||!t;s.textContent=t}
-function stop(full=true){listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle')}}
+function stop(full=true){if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle')}}
 function markLatency(t0){if(t0==null)return;lastLat=Math.round(window.karen._voiceAt-t0);log('задержка (конец речи → голос):',lastLat+' мс')}
 // play one prerecorded line with its emotion; resolves when done
 async function sayLine(l,sig,t0,{after=true}={}){
   if(!l)return;log(`[локально] ${l.id} ${l.emotion}: ${l.text}`);
   let buf=null;try{buf=await clip(l.file)}catch(e){log('audio:',e.message)}
   if(sig.aborted)return;
-  clearMood();mood=WAVE_STATES.has(l.emotion)?null:l.emotion;showSubs(l.text);setState('speaking');
+  clearMood();const st=l.steps||[];const first=st.length&&st[0].at<.05?st[0].emotion:l.emotion;
+  mood=WAVE_STATES.has(first)?null:first;showSubs(l.text);setState('speaking');
+  const dur=buf?buf.duration*1000:Math.max(1200,l.text.length*60);let endEmo=l.emotion;
+  for(const x of st){endEmo=x.emotion;moodTimers.push(setTimeout(()=>{if(sig.aborted)return;
+    if(WAVE_STATES.has(x.emotion)){mood=null;setState(x.emotion)}else{mood=x.emotion;setState('speaking')}},x.at*dur))} // timed face changes inside the line
   const p=buf?playBuf(buf,sig):fakeVoice(l.text,sig);if(buf)markLatency(t0);await p;
   if(sig.aborted)return;showSubs('');clearMood();
-  if(after){const react=WAVE_STATES.has(l.emotion)?null:l.emotion;react?setState(react,1800):setState('idle')}
+  if(after){const react=WAVE_STATES.has(endEmo)?null:endEmo;react?setState(react,react==='sleep'?6000:1800):setState('idle')}
 }
 // main router: text (from STT or debug field) → local intent → prerecorded voice. t0 = moment speech ended.
 async function handleText(text,t0){
   const sig=newTurn();log('фраза:',text);
+  if(follow&&Date.now()<follow.until){const f=follow;follow=null;const k=KarenCommands.yesno(text); // answer to Karen's yes/no question
+    if(k){const b=KarenCommands.branch(f.f,k);await sayLine(b,sig,t0);if(busy&&busy.signal===sig)busy=null;return}}
+  follow=null;
   const it=KarenCommands.intent(text);
   if(it&&it.id==='photo'){busy=null;return photoFlow(KarenCommands.line(it),t0)}
-  if(it){await sayLine(KarenCommands.line(it),sig,t0);if(busy&&busy.signal===sig)busy=null;return}
+  if(it){const l=KarenCommands.line(it);await sayLine(l,sig,t0,{after:!l.follow});if(sig.aborted)return;if(busy&&busy.signal===sig)busy=null;
+    if(l.follow){follow={f:l.follow,until:Date.now()+15000};if(ASR.state==='ready'||(cfg.cloud&&backend().name==='cloud'))return listen();setState('idle')}return}
   if(KarenCommands.hasName(text)&&KarenCommands.stripName(text).length<3){ // only «Карен» → short ack, then listen for the phrase
     await sayLine(KarenCommands.sys('name'),sig,t0,{after:false});if(sig.aborted)return;busy=null;return listen();}
   if(cfg.llm&&cfg.cloud&&backend().name==='cloud'){busy=null;return turnLLM(text,t0)}
@@ -158,7 +166,7 @@ async function turnLLM(text,t0){
 }
 
 // ---------- tap-to-listen: own mic capture (getUserMedia → no system beep), simple VAD ----------
-let listenOn=false;
+let listenOn=false,listenCancel=false,follow=null; // follow = pending yes/no question {f:{yes,no,none},until}
 // ---- on-device recognition: vosk-browser (WASM) + slim vosk-model-small-ru-0.22 (grammar-only), restricted grammar from commands.json ----
 // Model file is downloaded by the page itself (streamed, progress, resume via Range), stored in Cache Storage (persistent),
 // and handed to the Vosk worker as a blob: URL — so the 33 MB download happens once and the worker never touches the network.
@@ -235,7 +243,7 @@ async function listen(){
   try{await openMic()}catch(e){log('mic error:',e.name);setState('error',1500);return}
   const offline=ASR.state==='ready',cloud=!offline&&cfg.cloud&&backend().name==='cloud';
   if(!offline&&!cloud){if(ASR.state==='none'||ASR.state==='error')loadAsr(true);const s=newTurn();await sayLine(KarenCommands.sys('asr_loading')||KarenCommands.sys('fallback'),s,null);busy=null;return}
-  listenOn=true;setState('listening');
+  listenOn=true;listenCancel=false;setState('listening');
   let r=null,partial='',final=null,proc=null,src=null;
   if(offline){
     r=new ASR.model.KaldiRecognizer(16000,grammar());
@@ -251,9 +259,12 @@ async function listen(){
     const el=now-tS;
     if((spoke&&now-lastVoice>VAD.silence)||el>VAD.max||(!spoke&&el>VAD.noSpeech))return res();
     requestAnimationFrame(loop)})()});
+  if(listenCancel){listenCancel=false;listenOn=false;targetLevel=0;try{proc&&proc.disconnect();src&&src.disconnect();r&&r.remove()}catch{}if(rec){rec.stop();rec=null}return} // another turn took over
   const manual=!listenOn;listenOn=false;targetLevel=0;const tEnd=performance.now(),tSpeech=spoke?lastVoice:tEnd;
   if(offline){
-    if(!spoke&&!manual){proc.disconnect();src.disconnect();r.remove();setState('idle');return}
+    if(!spoke&&!manual){proc.disconnect();src.disconnect();r.remove();
+      if(follow){const f=follow;follow=null;const b=KarenCommands.branch(f.f,'none');if(b){const s=newTurn();await sayLine(b,s,null);busy=null;return}}
+      setState('idle');return}
     if(final===null){r.retrieveFinalResult();const t=performance.now();await new Promise(z=>{(function w(){if(final!==null||performance.now()-t>700)return z();setTimeout(w,10)})()})}
     proc.disconnect();src.disconnect();try{r.remove()}catch{}
     const text=String(final||partial).replace(/\[unk\]/g,' ').replace(/\s+/g,' ').trim();
@@ -339,7 +350,8 @@ bind('#endpoint','endpoint');bind('#token','token');bind('#cloudToggle','cloud',
 bind('#llmToggle','llm','checked',Boolean);
 $('#endpoint').addEventListener('change',e=>{if(/api-key|iam|token=|[?&]key=/i.test(e.target.value)){e.target.value='';cfg.endpoint='';SS('endpoint','');log('URL с ключом отклонён')}});
 
-KarenCommands.ready.then(()=>{const d=KarenCommands.data;$('#cmdList').innerHTML='<p>Коснитесь экрана → «Карен, …» (имя можно не говорить). Только «Карен» → «Слушаю», затем фраза.</p>'+d.commands.map(c=>`<p><b>${c.id}</b> (${c.emotion}): ${c.phrases.map(p=>p.replace(/\.$/,'')).join(', ')}</p>`).join('')});
+const CMD_TITLE={worldplan:'План захвата мира («план захвата мира»)',formula:'Секретная формула («формула», «секретный рецепт»)',reboot:'Фейковая перезагрузка с ошибкой («перезагрузка»)',marketer:'Комплимент-прожарка маркетологам («комплимент маркетологам»)',fortune:'Предсказание («предсказание», «моё будущее»)',quiz:'Викторина да/нет («угадай», «давай поиграем») — затем ответьте «да» или «нет»',jealous:'Сцена ревности («Алиса», «другая нейросеть», «ревнуешь»)',lullaby:'Колыбельная («спой колыбельную», «спокойной ночи»)',photo:'Фото с таймером («сделай фото»)',love:'«Я люблю тебя»',joke:'Шутка',angry:'Грубость («ты глупая»)',proud:'Комплимент Карен («ты умница»)',sad:'Утешение («всё пропало»)',suspicious:'Новый план',annoyed:'«Хватит»',confused:'«Не понял»',error:'«Ошибка», «сломалась»',hello:'Приветствие',bye:'Прощание',thanks:'Спасибо',howareyou:'«Как дела»',whoareyou:'«Кто ты»',whatdoing:'«Что делаешь»',plankton:'Про Шелдона',party:'Праздник, тост'};
+KarenCommands.ready.then(()=>{const d=KarenCommands.data;$('#cmdList').innerHTML='<p>Коснитесь экрана и скажите фразу (можно с «Карен, …»).</p>'+d.commands.map(c=>`<p><b>${CMD_TITLE[c.id]||c.id}</b><br><small>${c.phrases.map(p=>p.replace(/\.$/,'')).join(', ')} · ${c.lines.length} вар.</small></p>`).join('')});
 // idle -> sleep after 3 min inactivity
 let lastAct=Date.now();addEventListener('pointerdown',()=>{lastAct=Date.now();if(state==='sleep')setState('idle')});
 setInterval(()=>{if(state==='idle'&&Date.now()-lastAct>180e3)setState('sleep')},5000);
