@@ -3,7 +3,7 @@ const $=s=>document.querySelector(s), B=KarenBackend;
 const T=180; // transition ms (120–220)
 const LS=k=>localStorage.getItem('karen.'+k), SS=(k,v)=>localStorage.setItem('karen.'+k,v);
 const DEFAULT_EP='https://d5dtcref7c17ac6u1m8s.d8epmcec.apigw.yandexcloud.net';
-const cfg={endpoint:LS('endpoint')||DEFAULT_EP,token:LS('token')||'',offline:LS('offline')==='1',volume:+(LS('volume')||1),role:LS('role')||'guest',subs:LS('subs')==='1'};
+const cfg={endpoint:LS('endpoint')||DEFAULT_EP,token:LS('token')||'',offline:LS('offline')==='1',volume:+(LS('volume')||1),role:LS('role')||'guest',subs:LS('subs')==='1',llm:LS('llm')==='1'};
 const log=(...a)=>{const l=$('#log');l.textContent=(new Date().toLocaleTimeString()+' '+a.join(' ')+'\n'+l.textContent).slice(0,4000)};
 
 // ---------- faces (inline asset SVGs + animated particles, all precached) ----------
@@ -40,11 +40,11 @@ function setState(s,holdMs){
   else if(s==='speaking'&&mood) showFace(mood,true);
   else showFace(null,false);
   if(holdMs) holdTimer=setTimeout(()=>setState('idle'),holdMs);
-  $('#status').textContent=`состояние: ${s} · режим: ${backend().name}${wake.on?' · wake':''}`;
+  $('#status').textContent=`состояние: ${s} · режим: ${backend().name}${cfg.llm?' · LLM':''}`;
 }
 function setMood(m){mood=(m&&!WAVE_STATES.has(m))?m:null;if(state==='speaking')setState('speaking')}
 function clearMood(){mood=null;moodTimers.forEach(clearTimeout);moodTimers=[]}
-window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),get wakeOn(){return wake.on}};
+window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),intent:t=>KarenCommands.intent(t),get lastLatency(){return lastLat},_voiceAt:0,handleText:(t)=>handleText(t,performance.now()),photo:()=>photoFlow(KarenCommands.line(KarenCommands.intent('фото')),null)};
 
 // ---------- waveform ----------
 const cv=$('#wave'),cx=cv.getContext('2d');
@@ -99,114 +99,144 @@ function startRecord(){
     for(let i=0;i<out.length;i++){const v=all[Math.floor(i*ratio)];out[i]=Math.max(-1,Math.min(1,v))*32767}
     return {blob:new Blob([out.buffer],{type:'audio/l16'}),seconds:out.length/16000}}};
 }
-function stopAudio(){if(playing){try{playing.stop()}catch{}playing=null}speechSynthesis&&speechSynthesis.cancel()}
-async function playBlob(blob,signal){
-  const ctx=ac(),buf=await ctx.decodeAudioData(await blob.arrayBuffer()),s=ctx.createBufferSource(),g=ctx.createGain(),an=ctx.createAnalyser();
+function stopAudio(){if(playing){try{playing.stop()}catch{}playing=null}}
+async function playBuf(buf,signal){
+  const ctx=ac(),s=ctx.createBufferSource(),g=ctx.createGain(),an=ctx.createAnalyser();
   g.gain.value=cfg.volume;s.buffer=buf;s.connect(an);an.connect(g);g.connect(ctx.destination);an.fftSize=1024;playing=s;
   return new Promise(res=>{const tick=()=>{if(playing!==s)return res();targetLevel=rms(an);requestAnimationFrame(tick)};
-    s.onended=()=>{if(playing===s)playing=null;targetLevel=0;res()};signal&&signal.addEventListener('abort',()=>{try{s.stop()}catch{}});s.start();tick()});
+    s.onended=()=>{if(playing===s)playing=null;targetLevel=0;res()};signal&&signal.addEventListener('abort',()=>{try{s.stop()}catch{}res()});s.start();window.karen._voiceAt=performance.now();tick()});
 }
-// offline/demo speech: browser voice if present (explicitly NOT SpeechKit) + simulated envelope
-function speakLocal(text,signal){
-  return new Promise(res=>{
-    const ms=Math.min(9000,600+text.length*55);let done=false,t=performance.now();
-    const fin=()=>{if(done)return;done=true;targetLevel=0;res()};
-    const env=()=>{if(done)return;const k=(performance.now()-t)/1000;targetLevel=.35+.3*Math.abs(Math.sin(k*9))*Math.abs(Math.sin(k*2.3));requestAnimationFrame(env)};env();
-    try{if('speechSynthesis' in window&&speechSynthesis.getVoices().some(v=>/ru/i.test(v.lang))){const u=new SpeechSynthesisUtterance(text);u.lang='ru-RU';u.volume=cfg.volume;u.rate=1.02;u.pitch=.9;u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);setTimeout(fin,ms+4000)}else setTimeout(fin,ms)}catch{setTimeout(fin,ms)}
-    signal&&signal.addEventListener('abort',()=>{speechSynthesis&&speechSynthesis.cancel();fin()});
-  });
-}
+async function playBlob(blob,signal){return playBuf(await ac().decodeAudioData(await blob.arrayBuffer()),signal)}
+// prerecorded SpeechKit (jane) lines: bytes fetched at boot (SW-precached), decoded once
+const raw={},decoded={};
+KarenCommands.ready.then(()=>{for(const f of KarenCommands.allFiles()) raw[f]=fetch(f).then(r=>r.ok?r.arrayBuffer():null).catch(()=>null)});
+async function clip(f){if(decoded[f])return decoded[f];const ab=await (raw[f]||(raw[f]=fetch(f).then(r=>r.ok?r.arrayBuffer():null)));if(!ab)throw new Error('no audio '+f);return decoded[f]=await ac().decodeAudioData(ab.slice(0))}
+let warmed=false;function warmDecode(){if(warmed)return;warmed=true;for(const f of Object.keys(raw)) clip(f).catch(()=>{})}
+// silent envelope (never a browser voice) — only if an audio file is missing
+function fakeVoice(text,signal){return new Promise(res=>{const ms=Math.min(6000,600+text.length*45),t=performance.now();let done=false;const fin=()=>{if(!done){done=true;targetLevel=0;res()}};
+  (function env(){if(done)return;const k=(performance.now()-t)/1000;targetLevel=.35+.3*Math.abs(Math.sin(k*9));requestAnimationFrame(env)})();setTimeout(fin,ms);signal&&signal.addEventListener('abort',fin)})}
 
 // ---------- backend ----------
 function backend(){return (!cfg.offline&&cfg.endpoint&&cfg.token)?B.Cloud(cfg.endpoint,cfg.token):B.Demo}
-let history=[],lastTurn=0;
-async function turn(text,opt={}){
-  stop(false);stopWake();const ac_=new AbortController();busy=ac_;const sig=ac_.signal;
-  if(Date.now()-lastTurn>5*60e3) history=[];lastTurn=Date.now();
-  const forced=KarenCommands.match(text);
-  if(KarenCommands.hasName(text)&&!opt.woke&&!forced){setState('surprised');await sleep(320,sig);if(sig.aborted)return} // name → attentive blip
-  if(forced){setState(forced);log('команда →',forced)} else setState('thinking');
-  let r,be=backend();
-  try{r=await be.chat({text:text.slice(0,500),role:cfg.role,history:history.slice(-10),...(forced?{forced_emotion:forced}:{})},sig)}
-  catch(e){if(sig.aborted)return;log('chat failed:',e.message);setState('error',900);await sleep(900,sig);be=B.Demo;r=await B.Demo.chat({text,role:cfg.role,forced_emotion:forced})}
-  if(sig.aborted) return;
-  if(forced) r.emotion=forced;
-  history.push({role:'user',content:text},{role:'assistant',content:r.speech});
-  log(`[${r.source}] ${r.emotion}: ${r.speech}`);
-  let blob=null;
-  if(be.name==='cloud'){try{blob=await be.tts({text:r.speech,emotion:r.emotion},sig)}catch(e){log('tts failed:',e.message)}}
-  if(sig.aborted) return;
-  showSubs(r.speech);clearMood();
-  mood=forced||((r.emotions&&r.emotions[0]&&r.emotions[0].at<.05)?r.emotions[0].emotion:null);
-  if(mood&&WAVE_STATES.has(mood))mood=null;
-  setState('speaking');
-  const est=Math.min(9000,600+r.speech.length*55);
-  for(const x of (r.emotions||[])) moodTimers.push(setTimeout(()=>setMood(x.emotion),x.at*est));
-  if(!forced&&!(r.emotions||[]).length) moodTimers.push(setTimeout(()=>setMood(r.emotion),est*.45)); // reaction visible mid-speech
-  try{blob?await playBlob(blob,sig):await speakLocal(r.speech,sig)}catch(e){log('play failed:',e.message)}
-  if(sig.aborted) return;
-  showSubs('');clearMood();
-  const react=WAVE_STATES.has(r.emotion)?null:r.emotion;
-  if(react) setState(react,Math.max(1200,Math.min(r.hold_ms+600,react==='photo'?5000:3500))); else setState('idle');
-  busy=null;onTurnDone();
-}
+let history=[],lastTurn=0,lastLat=null;
 const sleep=(ms,sig)=>new Promise(r=>{const t=setTimeout(r,ms);sig&&sig.addEventListener('abort',()=>{clearTimeout(t);r()})});
-function stop(full=true){vadOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){wake.on=false;stopWake();const w=$('#wakeToggle');if(w)w.checked=false;closeMic();showSubs('');setState('idle')}}
+function newTurn(){stop(false);const a=new AbortController();busy=a;return a.signal}
 function showSubs(t){const s=$('#subs');s.hidden=!cfg.subs||!t;s.textContent=t}
-
-// ---------- push-to-talk ----------
-const ptt=$('#ptt');let pttOn=false,pttStart=0,lvlLoop=null;
-ptt.addEventListener('pointerdown',async e=>{e.preventDefault();if(pttOn)return;pttOn=true;stopWake();ptt.classList.add('held');stop(false);pttStart=Date.now();
-  try{await openMic();if(!pttOn)return;setState('listening');startRecord();
-    const loop=()=>{if(!pttOn)return;targetLevel=micAnalyser?rms(micAnalyser):0;lvlLoop=requestAnimationFrame(loop)};loop();
-    setTimeout(()=>{if(pttOn)endPtt()},12000);
-  }catch(err){pttOn=false;ptt.classList.remove('held');log('mic error:',err.name);setState('error',1200)}});
-async function endPtt(){if(!pttOn)return;pttOn=false;ptt.classList.remove('held');cancelAnimationFrame(lvlLoop);targetLevel=0;
-  if(!rec){return}const {blob,seconds}=rec.stop();rec=null;
-  if(seconds<.6){setState('idle');onTurnDone();return}
-  processClip(blob,seconds);
+function stop(full=true){listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}document.body.classList.remove('listen');if(full){closeMic();closeCam();showSubs('');setState('idle')}}
+function markLatency(t0){if(t0==null)return;lastLat=Math.round(window.karen._voiceAt-t0);log('задержка (конец речи → голос):',lastLat+' мс')}
+// play one prerecorded line with its emotion; resolves when done
+async function sayLine(l,sig,t0,{after=true}={}){
+  if(!l)return;log(`[локально] ${l.id} ${l.emotion}: ${l.text}`);
+  let buf=null;try{buf=await clip(l.file)}catch(e){log('audio:',e.message)}
+  if(sig.aborted)return;
+  clearMood();mood=WAVE_STATES.has(l.emotion)?null:l.emotion;showSubs(l.text);setState('speaking');
+  const p=buf?playBuf(buf,sig):fakeVoice(l.text,sig);if(buf)markLatency(t0);await p;
+  if(sig.aborted)return;showSubs('');clearMood();
+  if(after){const react=WAVE_STATES.has(l.emotion)?null:l.emotion;react?setState(react,1800):setState('idle')}
 }
-async function processClip(blob,seconds,woke){
-  const be=backend();
-  if(be.name==='demo'){turn(B.Demo.randomLine(cfg.role),{woke});return} // offline: no STT, scripted line
-  setState('thinking');
-  try{const r=await be.stt(blob);if(!r.text){setState('confused',1500);onTurnDone();return}log('STT:',r.text);turn(r.text,{woke})}
-  catch(e){log('stt failed:',e.message);setState('error',900);setTimeout(()=>turn(B.Demo.randomLine(cfg.role),{woke}),900)}}
-['pointerup','pointercancel','pointerleave'].forEach(ev=>ptt.addEventListener(ev,endPtt));
-addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&$('#menu').hidden)ptt.dispatchEvent(new PointerEvent('pointerdown'))});
-addEventListener('keyup',e=>{if(e.code==='Space')endPtt()});
-
-// ---------- wake word «Карен» (browser recognizer for wake only; the phrase itself → SpeechKit) ----------
-const getSR=()=>window.SpeechRecognition||window.webkitSpeechRecognition;
-const wake={on:false,rec:null,fails:0};
-let vadOn=false;
-function startWake(){
-  if(!wake.on||wake.rec||busy||pttOn||vadOn) return;
-  const SR=getSR();if(!SR){log('wake: SpeechRecognition недоступен в этом браузере');wake.on=false;$('#wakeToggle').checked=false;SS('wake','0');setState(state);return}
-  const r=new SR();r.lang='ru-RU';r.continuous=true;r.interimResults=true;r.maxAlternatives=3;wake.rec=r;
-  r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)for(let j=0;j<e.results[i].length;j++){if(KarenCommands.hasName(e.results[i][j].transcript)){wake.fails=0;stopWake();onWake();return}}};
-  r.onerror=e=>{log('wake err:',e.error);if(e.error==='not-allowed'||e.error==='service-not-allowed'){wake.on=false;$('#wakeToggle').checked=false}};
-  r.onend=()=>{wake.rec=null;if(wake.on&&!busy&&!pttOn&&!vadOn)setTimeout(startWake,Math.min(5000,300*(++wake.fails)))};
-  try{r.start()}catch(e){wake.rec=null;log('wake start:',e.message)}
+// main router: text (from STT or debug field) → local intent → prerecorded voice. t0 = moment speech ended.
+async function handleText(text,t0){
+  const sig=newTurn();log('фраза:',text);
+  const it=KarenCommands.intent(text);
+  if(it&&it.id==='photo'){busy=null;return photoFlow(KarenCommands.line(it),t0)}
+  if(it){await sayLine(KarenCommands.line(it),sig,t0);if(busy&&busy.signal===sig)busy=null;return}
+  if(KarenCommands.hasName(text)&&KarenCommands.stripName(text).length<3){ // only «Карен» → short ack, then listen for the phrase
+    await sayLine(KarenCommands.sys('name'),sig,t0,{after:false});if(sig.aborted)return;busy=null;return listen();}
+  if(cfg.llm&&backend().name==='cloud'){busy=null;return turnLLM(text,t0)}
+  await sayLine(KarenCommands.sys('fallback'),sig,t0);if(busy&&busy.signal===sig)busy=null;
 }
-function stopWake(){if(wake.rec){const r=wake.rec;wake.rec=null;r.onend=null;try{r.abort()}catch{}}}
-function onTurnDone(){if(wake.on)setTimeout(startWake,500)}
-async function onWake(){
-  stop(false);setState('surprised');await new Promise(r=>setTimeout(r,280));
-  try{await openMic()}catch(e){log('mic error:',e.name);setState('error',1200);onTurnDone();return}
-  setState('listening');startRecord();vadOn=true;
-  const t0=Date.now();let spoke=false,lastVoice=Date.now();
+// optional slow path (setting «LLM для непонятных фраз», default off)
+async function turnLLM(text,t0){
+  const sig=newTurn();if(Date.now()-lastTurn>5*60e3)history=[];lastTurn=Date.now();setState('thinking');
+  const be=backend();let r,blob=null;
+  try{r=await be.chat({text:text.slice(0,500),role:cfg.role,history:history.slice(-10)},sig);blob=await be.tts({text:r.speech,emotion:r.emotion,voice:'jane'},sig)}
+  catch(e){if(sig.aborted)return;log('llm failed:',e.message);return sayLine(KarenCommands.sys('fallback'),sig,t0)}
+  if(sig.aborted)return;history.push({role:'user',content:text},{role:'assistant',content:r.speech});
+  clearMood();mood=WAVE_STATES.has(r.emotion)?null:r.emotion;showSubs(r.speech);setState('speaking');
+  const p=playBlob(blob,sig);markLatency(t0);try{await p}catch(e){log('play failed:',e.message)}
+  if(sig.aborted)return;showSubs('');clearMood();const react=WAVE_STATES.has(r.emotion)?null:r.emotion;react?setState(react,1800):setState('idle');busy=null;
+}
+
+// ---------- tap-to-listen: own mic capture (getUserMedia → no system beep), simple VAD ----------
+let listenOn=false;
+const VAD={silence:800,max:8000,noSpeech:5000};
+async function listen(){
+  if(listenOn){listenOn=false;return} // second tap = «я договорил»
+  stop(false);ac();warmDecode();
+  try{await openMic()}catch(e){log('mic error:',e.name);setState('error',1500);return}
+  listenOn=true;document.body.classList.add('listen');setState('listening');startRecord();
+  const tS=performance.now();let spoke=false,lastVoice=tS,floor=.02,n=0;
   await new Promise(res=>{(function loop(){
-    if(!vadOn||!rec) return res();
-    const v=micAnalyser?rms(micAnalyser):0;targetLevel=v;
-    if(v>.06){spoke=true;lastVoice=Date.now()}
-    const el=Date.now()-t0;
-    if((spoke&&Date.now()-lastVoice>900)||el>12000||(!spoke&&el>4000)) return res();
+    if(!listenOn||!rec)return res();
+    const v=micAnalyser?rms(micAnalyser):0,now=performance.now();targetLevel=Math.min(1,v*1.5);
+    if(now-tS<300){floor=(floor*n+v)/(++n)}else{const th=Math.max(.05,floor*2.5);if(v>th){spoke=true;lastVoice=now}}
+    const el=now-tS;
+    if((spoke&&now-lastVoice>VAD.silence)||el>VAD.max||(!spoke&&el>VAD.noSpeech))return res();
     requestAnimationFrame(loop)})()});
-  vadOn=false;targetLevel=0;if(!rec){onTurnDone();return}
-  const {blob,seconds}=rec.stop();rec=null;
-  if(!spoke||seconds<.6){setState('idle');onTurnDone();return}
-  processClip(blob,seconds,true);
+  const manual=!listenOn;listenOn=false;document.body.classList.remove('listen');targetLevel=0;
+  if(!rec)return;const {blob,seconds}=rec.stop();rec=null;const tEnd=performance.now();
+  if((!spoke&&!manual)||seconds<.5){setState('idle');return}
+  processClip(blob,tEnd);
+}
+async function processClip(blob,tEnd){
+  const be=backend();
+  if(be.name==='demo'){const cs=KarenCommands.data.commands.filter(c=>c.id!=='photo'),c=cs[Math.floor(Math.random()*cs.length)];handleText(c.phrases[0].replace(/\.$/,''),tEnd);return} // offline: no STT, scripted phrase → same local lines
+  setState('thinking');
+  try{const r=await be.stt(blob);window.karen._sttMs=Math.round(performance.now()-tEnd);log('STT:',r.text||'(пусто)',window.karen._sttMs+' мс');
+    if(!r.text){const s=newTurn();await sayLine(KarenCommands.sys('fallback'),s,tEnd);busy=null;return}handleText(r.text,tEnd)}
+  catch(e){log('stt failed:',e.message);setState('error',700);const s=newTurn();await sleep(700,s);await sayLine(KarenCommands.sys('fallback'),s,tEnd);busy=null}
+}
+$('#stage').addEventListener('pointerdown',e=>{if(document.body.classList.contains('cam'))return;e.preventDefault();listen()});
+addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&$('#menu').hidden)listen()});
+
+// ---------- «Карен, сделай фото»: front camera, 5 s countdown, frame «День Маркетолога StP 2026» ----------
+let camStream=null,camTimer=null;
+function closeCam(){clearTimeout(camTimer);if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}document.body.classList.remove('cam');const c=$('#cam');c.hidden=true;c.dataset.step=''}
+function drawFrame(g,W,H){
+  const u=Math.min(W,H)/100,G='#BEFF31';g.save();
+  let gr=g.createLinearGradient(0,H*.62,0,H);gr.addColorStop(0,'rgba(8,20,29,0)');gr.addColorStop(1,'rgba(8,20,29,.92)');g.fillStyle=gr;g.fillRect(0,H*.62,W,H*.38);
+  gr=g.createLinearGradient(0,0,0,H*.16);gr.addColorStop(0,'rgba(8,20,29,.7)');gr.addColorStop(1,'rgba(8,20,29,0)');g.fillStyle=gr;g.fillRect(0,0,W,H*.16);
+  const m=3*u,r=3*u;g.strokeStyle=G;g.lineWidth=Math.max(3,.7*u);g.shadowColor=G;g.shadowBlur=2.5*u;
+  g.beginPath();g.roundRect?g.roundRect(m,m,W-2*m,H-2*m,r):g.rect(m,m,W-2*m,H-2*m);g.stroke();
+  // corner brackets
+  g.lineWidth=Math.max(5,1.3*u);const L=8*u,k=m+2.2*u;g.beginPath();
+  [[k,k,1,1],[W-k,k,-1,1],[k,H-k,1,-1],[W-k,H-k,-1,-1]].forEach(([x,y,sx,sy])=>{g.moveTo(x,y+sy*L);g.lineTo(x,y);g.lineTo(x+sx*L,y)});g.stroke();
+  g.shadowBlur=0;g.textBaseline='alphabetic';
+  g.fillStyle=G;g.font=`600 ${2.6*u}px ui-monospace,Menlo,monospace`;g.fillText('● KAREN · ФОТОМОДУЛЬ',k+1.5*u,k+4.5*u);
+  g.textAlign='right';g.fillText('25.10.2026',W-k-1.5*u,k+4.5*u);g.textAlign='left';
+  const x=k+2*u,by=H-k-3*u;
+  g.fillStyle='#fff';g.font=`800 ${7.2*u}px system-ui,"Segoe UI",Roboto,sans-serif`;g.shadowColor='rgba(0,0,0,.6)';g.shadowBlur=1.5*u;
+  g.fillText('ДЕНЬ МАРКЕТОЛОГА',x,by-9.5*u);
+  g.fillStyle=G;g.shadowColor=G;g.shadowBlur=2*u;g.font=`900 ${9*u}px system-ui,"Segoe UI",Roboto,sans-serif`;g.fillText('StP 2026',x,by);
+  // Karen waveform signature
+  const w0=x+g.measureText('StP 2026').width+4*u,w1=W-k-2*u,wy=by-3.2*u;g.lineWidth=Math.max(3,.8*u);g.beginPath();
+  for(let i=0;i<=120;i++){const p=i/120,xx=w0+(w1-w0)*p,env=Math.sin(Math.PI*p);const y=(Math.sin(p*38)*.6+Math.sin(p*13)*.4)*3.2*u*env;i?g.lineTo(xx,wy-y):g.moveTo(xx,wy-y)}
+  if(w1-w0>10*u)g.stroke();g.restore();
+}
+async function photoFlow(line,t0){
+  stop(false);const sig=newTurn();const cam=$('#cam'),v=$('#camVideo'),cd=$('#camCount'),res=$('#camResult');
+  const voice=sayLine(line,sig,t0,{after:false});
+  try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080}},audio:false})}
+  catch(e){log('camera:',e.name);await voice;if(sig.aborted)return;await sayLine(KarenCommands.sys('photo_fail'),sig);busy=null;return}
+  if(sig.aborted){closeCam();return}
+  v.srcObject=camStream;try{await v.play()}catch{}
+  document.body.classList.add('cam');cam.hidden=false;cam.dataset.step='count';res.hidden=true;
+  const ov=$('#camFrame');ov.width=innerWidth*(devicePixelRatio||1);ov.height=innerHeight*(devicePixelRatio||1);const og=ov.getContext('2d');og.clearRect(0,0,ov.width,ov.height);drawFrame(og,ov.width,ov.height);
+  for(let i=5;i>0;i--){cd.textContent=i;cd.classList.remove('tick');void cd.offsetWidth;cd.classList.add('tick');await sleep(1000,sig);if(sig.aborted){closeCam();return}}
+  cd.textContent='';cam.dataset.step='flash';
+  const W=v.videoWidth||1280,H=v.videoHeight||720,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  g.save();g.translate(W,0);g.scale(-1,1);g.drawImage(v,0,0,W,H);g.restore();drawFrame(g,W,H); // mirrored like the preview (selfie)
+  camStream.getTracks().forEach(t=>t.stop());camStream=null;stopAudio();
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.92));const name=`Karen_DenMarketologa_StP2026_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.jpg`;
+  const url=URL.createObjectURL(blob);$('#camImg').src=url;window.karen._lastPhoto={name,size:blob.size,W,H};
+  cam.dataset.step='result';res.hidden=false;
+  try{const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();log('фото сохранено (Загрузки):',name)}catch(e){log('download:',e.message)}
+  const file=new File([blob],name,{type:'image/jpeg'});
+  $('#camShare').hidden=!(navigator.canShare&&navigator.canShare({files:[file]}));
+  $('#camShare').onclick=async ev=>{ev.stopPropagation();try{await navigator.share({files:[file],title:'День Маркетолога StP 2026'})}catch(e){log('share:',e.name)}};
+  $('#camDone').onclick=ev=>{ev.stopPropagation();closeCam();setState('idle')};
+  busy=null;const s2=newTurn();busy=null;sayLine(KarenCommands.sys('photo_done'),s2,null,{after:false}).then(()=>{if(!s2.aborted&&state==='speaking')setState('proud')});
+  camTimer=setTimeout(()=>{closeCam();setState('idle')},45000);
 }
 
 // ---------- hidden menu: 2 s long-press top-right ----------
@@ -221,18 +251,19 @@ const acts={
   close:()=>$('#menu').hidden=true,
   stop:()=>{stop(true);log('STOP')},
   fullscreen:async()=>{try{await document.documentElement.requestFullscreen({navigationUI:'hide'});await screen.orientation?.lock?.('landscape')}catch(e){log('fullscreen:',e.message)}},
-  photo:()=>{stop(false);$('#menu').hidden=true;document.body.classList.add('photo');setState('photo',12000);setTimeout(()=>document.body.classList.remove('photo'),12000)},
-  send:()=>{const t=$('#debugText').value.trim();if(t){$('#menu').hidden=true;turn(t)}},
-  demoline:()=>{$('#menu').hidden=true;turn(B.Demo.randomLine(cfg.role))},
+  photo:()=>{$('#menu').hidden=true;photoFlow(KarenCommands.line(KarenCommands.intent('фото')),null)},
+  send:()=>{const t=$('#debugText').value.trim();if(t){$('#menu').hidden=true;handleText(t,performance.now())}},
+  demoline:()=>{$('#menu').hidden=true;handleText(B.Demo.randomLine(cfg.role),performance.now())},
   mictest:async()=>{try{await openMic();const m=$('#micMeter'),end=Date.now()+5000;(function l(){m.value=micAnalyser?rms(micAnalyser):0;if(Date.now()<end)requestAnimationFrame(l);else closeMic()})()}catch(e){log('mic test:',e.name)}},
   health:async()=>{try{const h=await backend().health();log('health:',JSON.stringify(h))}catch(e){log('health failed:',e.message)}},
 };
 $('#menu').addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(a)acts[a.dataset.act]()});
 const bind=(id,key,prop='value',cast=String)=>{const el=$(id);el[prop]=cfg[key];el.addEventListener('change',()=>{cfg[key]=cast(el[prop]);SS(key,prop==='checked'?(el[prop]?'1':'0'):el[prop]);setState(state)})};
 bind('#endpoint','endpoint');bind('#token','token');bind('#offline','offline','checked',Boolean);bind('#volume','volume','value',Number);bind('#role','role');bind('#subsToggle','subs','checked',Boolean);
-$('#wakeToggle').addEventListener('change',e=>{wake.on=e.target.checked;SS('wake',wake.on?'1':'0');if(wake.on){ac();startWake()}else stopWake();setState(state)});
+bind('#llmToggle','llm','checked',Boolean);
 $('#endpoint').addEventListener('change',e=>{if(/api-key|iam|token=|[?&]key=/i.test(e.target.value)){e.target.value='';cfg.endpoint='';SS('endpoint','');log('URL с ключом отклонён')}});
 
+KarenCommands.ready.then(()=>{const d=KarenCommands.data;$('#cmdList').innerHTML='<p>Коснитесь экрана → «Карен, …» (имя можно не говорить). Только «Карен» → «Слушаю», затем фраза.</p>'+d.commands.map(c=>`<p><b>${c.id}</b> (${c.emotion}): ${c.phrases.map(p=>p.replace(/\.$/,'')).join(', ')}</p>`).join('')});
 // idle -> sleep after 3 min inactivity
 let lastAct=Date.now();addEventListener('pointerdown',()=>{lastAct=Date.now();if(state==='sleep')setState('idle')});
 setInterval(()=>{if(state==='idle'&&Date.now()-lastAct>180e3)setState('sleep')},5000);

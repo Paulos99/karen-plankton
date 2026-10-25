@@ -18,7 +18,9 @@
   <div id="subs" hidden></div>
 </main>
 <div id="corner" aria-hidden="true"></div>
-<button id="ptt" aria-label="Говорить (удерживать)"></button>
+<div id="listenCue" aria-hidden="true"><span>Слушаю…</span></div>
+<div id="hint" aria-hidden="true">коснись экрана и скажи «Карен, …»</div>
+<div id="cam" hidden><video id="camVideo" playsinline muted autoplay></video><canvas id="camFrame"></canvas><div id="camCount"></div><div id="camResult" hidden><img id="camImg" alt="Фото"><div class="row"><button id="camShare">Сохранить в Галерею / поделиться</button><button id="camDone">Готово</button></div><p>Фото уже скачано в «Загрузки» — оно видно в Галерее.</p></div></div>
 <div id="rotate" aria-hidden="true">↻</div>
 
 <aside id="menu" hidden>
@@ -40,7 +42,7 @@
     <label>Громкость <input id="volume" type="range" min="0" max="1" step="0.05"></label>
     <button data-act="mictest">Тест микрофона</button><meter id="micMeter" min="0" max="1"></meter>
     <label><input type="checkbox" id="subsToggle"> Субтитры</label>
-    <label><input type="checkbox" id="wakeToggle"> Реагировать на «Карен» (hands-free)</label>
+    <label><input type="checkbox" id="llmToggle"> LLM для непонятных фраз (медленно, по умолчанию выкл.)</label>
   </section>
   <section class="row">
     <label><input type="checkbox" id="offline"> Офлайн-демо (сценарий)</label>
@@ -48,6 +50,7 @@
     <input id="token" type="password" placeholder="Код устройства (X-Karen-Token)" autocomplete="off">
     <button data-act="health">Проверить backend</button>
   </section>
+  <details><summary>Команды</summary><div id="cmdList"></div></details>
   <pre id="log"></pre>
 </aside>
 <script src="emotions.js"></script>
