@@ -18,41 +18,31 @@
   <div id="subs" hidden></div>
 </main>
 <div id="corner" aria-hidden="true"></div>
-<div id="listenCue" aria-hidden="true"><span>Слушаю…</span></div>
-<div id="hint" aria-hidden="true">коснись экрана и скажи «Карен, …»</div>
 <div id="cam" hidden><video id="camVideo" playsinline muted autoplay></video><canvas id="camFrame"></canvas><div id="camCount"></div><div id="camResult" hidden><img id="camImg" alt="Фото"><div class="row"><button id="camShare">Сохранить в Галерею / поделиться</button><button id="camDone">Готово</button></div><p>Фото уже скачано в «Загрузки» — оно видно в Галерее.</p></div></div>
 <div id="rotate" aria-hidden="true">↻</div>
 
 <aside id="menu" hidden>
-  <header><b>Карен · управление</b><span id="status"></span><button data-act="close">✕</button></header>
+  <header><b>Карен</b><span id="status"></span><button data-act="close">✕</button></header>
   <section class="row">
     <button data-act="stop" class="danger">Стоп</button>
     <button data-act="fullscreen">Полный экран</button>
-    <button data-act="photo">Фоторежим</button>
-    <label class="seg">Собеседник:
-      <select id="role"><option value="guest">Гость</option><option value="plankton">Муж (Планктон)</option></select></label>
+    <button data-act="photo">Фото</button>
+    <label>Громкость <input id="volume" type="range" min="0" max="1" step="0.05"></label>
+    <label><input type="checkbox" id="subsToggle"> Субтитры</label>
+    <button data-act="mictest">Тест микрофона</button><meter id="micMeter" min="0" max="1"></meter>
   </section>
   <section><h4>Эмоции</h4><div id="emoGrid"></div></section>
-  <section class="row">
-    <input id="debugText" placeholder="Текст вопроса для отладки" maxlength="280">
-    <button data-act="send">Отправить</button>
-    <button data-act="demoline">Демо-реплика</button>
-  </section>
-  <section class="row">
-    <label>Громкость <input id="volume" type="range" min="0" max="1" step="0.05"></label>
-    <button data-act="mictest">Тест микрофона</button><meter id="micMeter" min="0" max="1"></meter>
-    <label><input type="checkbox" id="subsToggle"> Субтитры</label>
-    <label><input type="checkbox" id="llmToggle"> LLM для непонятных фраз (медленно, по умолчанию выкл.)</label>
-  </section>
-  <section class="row">
-    <label><input type="checkbox" id="offline"> Офлайн-демо (сценарий)</label>
-    <input id="endpoint" placeholder="https://backend… (только публичный URL, без ключей)">
-    <input id="token" type="password" placeholder="Код устройства (X-Karen-Token)" autocomplete="off">
-    <button data-act="health">Проверить backend</button>
-  </section>
   <details><summary>Команды</summary><div id="cmdList"></div></details>
+  <section id="adv" hidden><h4>Сервис (#advanced)</h4><div class="row">
+    <label class="seg">Собеседник: <select id="role"><option value="guest">Гость</option><option value="plankton">Муж (Планктон)</option></select></label>
+    <input id="debugText" placeholder="Текст фразы для проверки" maxlength="280"><button data-act="send">Отправить</button>
+    <label><input type="checkbox" id="cloudToggle"> Облачное распознавание, если офлайн не готово</label>
+    <label><input type="checkbox" id="llmToggle"> LLM для непонятных фраз</label>
+    <input id="endpoint" placeholder="https://backend…"><input id="token" type="password" placeholder="Код устройства" autocomplete="off">
+    <button data-act="health">Проверить backend</button></div></section>
   <pre id="log"></pre>
 </aside>
+<script src="vosk/vosk.js"></script>
 <script src="emotions.js"></script>
 <script src="commands.js"></script>
 <script src="backend.js"></script>

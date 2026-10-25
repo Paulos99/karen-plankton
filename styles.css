@@ -25,13 +25,7 @@ body.photo #ptt{display:none}
 #emoGrid img{width:100%;aspect-ratio:16/9;border-radius:6px}
 #log{font:12px monospace;opacity:.7;max-height:110px;overflow:auto;white-space:pre-wrap}
 @media (prefers-reduced-motion:reduce){:root{--t:120ms}}
-#listenCue{position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;transition:opacity var(--t) ease;box-shadow:inset 0 0 0 6px #beff31aa,inset 0 0 80px #beff3155;display:flex;justify-content:center;align-items:flex-start}
-#listenCue span{margin-top:4vh;color:var(--g);font:600 clamp(18px,3vw,30px) system-ui;letter-spacing:.08em;text-shadow:0 0 14px #beff31}
-body.listen #listenCue{opacity:1;animation:cue 1.1s ease-in-out infinite}
-@keyframes cue{50%{box-shadow:inset 0 0 0 10px #beff31,inset 0 0 120px #beff3177}}
-#hint{position:fixed;bottom:3vh;width:100%;text-align:center;color:#beff3155;font-size:clamp(12px,1.6vw,18px);pointer-events:none;z-index:2}
-body:not([data-state=idle]) #hint{opacity:0}
-#cam{position:fixed;inset:0;z-index:8;background:#000;touch-action:auto}
+body.listen body:not([data-state=idle]) #cam{position:fixed;inset:0;z-index:8;background:#000;touch-action:auto}
 #camVideo,#camFrame{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #camVideo{transform:scaleX(-1)}
 #camCount{position:absolute;inset:0;display:grid;place-items:center;color:var(--g);font:900 min(40vh,40vw) system-ui;text-shadow:0 0 40px #beff31,0 0 4px #000;pointer-events:none}
@@ -45,3 +39,4 @@ body:not([data-state=idle]) #hint{opacity:0}
 #camResult p{color:#beff3199;margin:0;font-size:14px}
 #cmdList{font-size:13px;opacity:.85}#cmdList p{margin:3px 0}
 #camResult[hidden],#camShare[hidden]{display:none!important}
+#log{display:none}#adv:not([hidden])~#log{display:block}

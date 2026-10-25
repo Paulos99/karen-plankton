@@ -3,7 +3,7 @@ const $=s=>document.querySelector(s), B=KarenBackend;
 const T=180; // transition ms (120–220)
 const LS=k=>localStorage.getItem('karen.'+k), SS=(k,v)=>localStorage.setItem('karen.'+k,v);
 const DEFAULT_EP='https://d5dtcref7c17ac6u1m8s.d8epmcec.apigw.yandexcloud.net';
-const cfg={endpoint:LS('endpoint')||DEFAULT_EP,token:LS('token')||'',offline:LS('offline')==='1',volume:+(LS('volume')||1),role:LS('role')||'guest',subs:LS('subs')==='1',llm:LS('llm')==='1'};
+const cfg={endpoint:LS('endpoint')||DEFAULT_EP,token:LS('token')||'',cloud:LS('cloud')==='1',volume:+(LS('volume')||1),role:LS('role')||'guest',subs:LS('subs')==='1',llm:LS('llm')==='1'};
 const log=(...a)=>{const l=$('#log');l.textContent=(new Date().toLocaleTimeString()+' '+a.join(' ')+'\n'+l.textContent).slice(0,4000)};
 
 // ---------- faces (inline asset SVGs + animated particles, all precached) ----------
@@ -25,7 +25,7 @@ const facesReady=Promise.all(KAREN_EMOTIONS.map(async e=>{
 }));
 
 // ---------- state machine ----------
-const WAVE_STATES=new Set(['idle','speaking','listening','thinking','reboot']); // drawn live on canvas
+const WAVE_STATES=new Set(['idle','speaking','thinking','reboot']); // drawn live on canvas
 let state='idle',holdTimer=null,busy=null,level=0,targetLevel=0,mood=null,moodTimers=[];
 function showFace(id,overlay){
   document.body.classList.toggle('faceon',!!id&&!overlay);
@@ -40,11 +40,11 @@ function setState(s,holdMs){
   else if(s==='speaking'&&mood) showFace(mood,true);
   else showFace(null,false);
   if(holdMs) holdTimer=setTimeout(()=>setState('idle'),holdMs);
-  $('#status').textContent=`состояние: ${s} · режим: ${backend().name}${cfg.llm?' · LLM':''}`;
+  $('#status').textContent=`состояние: ${s} · распознавание: ${ASR.state==='ready'?'офлайн, готово':ASR.state==='loading'?'загружается…':'нет'}`;
 }
 function setMood(m){mood=(m&&!WAVE_STATES.has(m))?m:null;if(state==='speaking')setState('speaking')}
 function clearMood(){mood=null;moodTimers.forEach(clearTimeout);moodTimers=[]}
-window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),intent:t=>KarenCommands.intent(t),get lastLatency(){return lastLat},_voiceAt:0,handleText:(t)=>handleText(t,performance.now()),photo:()=>photoFlow(KarenCommands.line(KarenCommands.intent('фото')),null)};
+window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),intent:t=>KarenCommands.intent(t),get lastLatency(){return lastLat},_voiceAt:0,get asr(){return ASR.state},handleText:(t)=>handleText(t,performance.now()),photo:()=>photoFlow(KarenCommands.line(KarenCommands.intent('фото')),null)};
 
 // ---------- waveform ----------
 const cv=$('#wave'),cx=cv.getContext('2d');
@@ -117,12 +117,12 @@ function fakeVoice(text,signal){return new Promise(res=>{const ms=Math.min(6000,
   (function env(){if(done)return;const k=(performance.now()-t)/1000;targetLevel=.35+.3*Math.abs(Math.sin(k*9));requestAnimationFrame(env)})();setTimeout(fin,ms);signal&&signal.addEventListener('abort',fin)})}
 
 // ---------- backend ----------
-function backend(){return (!cfg.offline&&cfg.endpoint&&cfg.token)?B.Cloud(cfg.endpoint,cfg.token):B.Demo}
+function backend(){return (cfg.endpoint&&cfg.token)?B.Cloud(cfg.endpoint,cfg.token):B.Demo}
 let history=[],lastTurn=0,lastLat=null;
 const sleep=(ms,sig)=>new Promise(r=>{const t=setTimeout(r,ms);sig&&sig.addEventListener('abort',()=>{clearTimeout(t);r()})});
 function newTurn(){stop(false);const a=new AbortController();busy=a;return a.signal}
 function showSubs(t){const s=$('#subs');s.hidden=!cfg.subs||!t;s.textContent=t}
-function stop(full=true){listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}document.body.classList.remove('listen');if(full){closeMic();closeCam();showSubs('');setState('idle')}}
+function stop(full=true){listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle')}}
 function markLatency(t0){if(t0==null)return;lastLat=Math.round(window.karen._voiceAt-t0);log('задержка (конец речи → голос):',lastLat+' мс')}
 // play one prerecorded line with its emotion; resolves when done
 async function sayLine(l,sig,t0,{after=true}={}){
@@ -142,7 +142,7 @@ async function handleText(text,t0){
   if(it){await sayLine(KarenCommands.line(it),sig,t0);if(busy&&busy.signal===sig)busy=null;return}
   if(KarenCommands.hasName(text)&&KarenCommands.stripName(text).length<3){ // only «Карен» → short ack, then listen for the phrase
     await sayLine(KarenCommands.sys('name'),sig,t0,{after:false});if(sig.aborted)return;busy=null;return listen();}
-  if(cfg.llm&&backend().name==='cloud'){busy=null;return turnLLM(text,t0)}
+  if(cfg.llm&&cfg.cloud&&backend().name==='cloud'){busy=null;return turnLLM(text,t0)}
   await sayLine(KarenCommands.sys('fallback'),sig,t0);if(busy&&busy.signal===sig)busy=null;
 }
 // optional slow path (setting «LLM для непонятных фраз», default off)
@@ -159,32 +159,56 @@ async function turnLLM(text,t0){
 
 // ---------- tap-to-listen: own mic capture (getUserMedia → no system beep), simple VAD ----------
 let listenOn=false;
-const VAD={silence:800,max:8000,noSpeech:5000};
+// ---- on-device recognition: vosk-browser (WASM) + vosk-model-small-ru, restricted grammar from commands.json ----
+const ASR={model:null,state:'off',t:0};
+function loadAsr(){
+  if(ASR.state==='loading'||ASR.state==='ready'||!window.Vosk)return;ASR.state='loading';ASR.t=performance.now();
+  Vosk.createModel(new URL('vosk/vosk-ru-small.tar.gz',location.href).href,-1).then(m=>{ASR.model=m;ASR.state='ready';ASR.loadMs=Math.round(performance.now()-ASR.t);log('офлайн-распознавание готово за',ASR.loadMs+' мс');setState(state)})
+   .catch(e=>{ASR.state='off';log('vosk:',e&&e.message)});
+}
+function grammar(){const d=KarenCommands.data;return JSON.stringify([...new Set([...(d.grammar||[]),...d.name.filter(n=>!n.includes(' '))])].concat('[unk]'))}
+const VAD={silence:450,max:8000,noSpeech:5000};
 async function listen(){
   if(listenOn){listenOn=false;return} // second tap = «я договорил»
   stop(false);ac();warmDecode();
   try{await openMic()}catch(e){log('mic error:',e.name);setState('error',1500);return}
-  listenOn=true;document.body.classList.add('listen');setState('listening');startRecord();
+  const offline=ASR.state==='ready',cloud=!offline&&cfg.cloud&&backend().name==='cloud';
+  if(!offline&&!cloud){const s=newTurn();await sayLine(KarenCommands.sys('asr_loading')||KarenCommands.sys('fallback'),s,null);busy=null;return}
+  listenOn=true;setState('listening');
+  let r=null,partial='',final=null,proc=null,src=null;
+  if(offline){
+    r=new ASR.model.KaldiRecognizer(16000,grammar());
+    r.on('partialresult',e=>{partial=e.result.partial||partial});r.on('result',e=>{final=e.result.text||''});
+    const ctx=ac();src=ctx.createMediaStreamSource(micStream);proc=ctx.createScriptProcessor(2048,1,1);
+    proc.onaudioprocess=e=>{try{r.acceptWaveformFloat(new Float32Array(e.inputBuffer.getChannelData(0)),ctx.sampleRate)}catch{}};src.connect(proc);proc.connect(ctx.destination);
+  } else startRecord();
   const tS=performance.now();let spoke=false,lastVoice=tS,floor=.02,n=0;
   await new Promise(res=>{(function loop(){
-    if(!listenOn||!rec)return res();
+    if(!listenOn)return res();
     const v=micAnalyser?rms(micAnalyser):0,now=performance.now();targetLevel=Math.min(1,v*1.5);
     if(now-tS<300){floor=(floor*n+v)/(++n)}else{const th=Math.max(.05,floor*2.5);if(v>th){spoke=true;lastVoice=now}}
     const el=now-tS;
     if((spoke&&now-lastVoice>VAD.silence)||el>VAD.max||(!spoke&&el>VAD.noSpeech))return res();
     requestAnimationFrame(loop)})()});
-  const manual=!listenOn;listenOn=false;document.body.classList.remove('listen');targetLevel=0;
-  if(!rec)return;const {blob,seconds}=rec.stop();rec=null;const tEnd=performance.now();
+  const manual=!listenOn;listenOn=false;targetLevel=0;const tEnd=performance.now(),tSpeech=spoke?lastVoice:tEnd;
+  if(offline){
+    if(!spoke&&!manual){proc.disconnect();src.disconnect();r.remove();setState('idle');return}
+    if(final===null){r.retrieveFinalResult();const t=performance.now();await new Promise(z=>{(function w(){if(final!==null||performance.now()-t>700)return z();setTimeout(w,10)})()})}
+    proc.disconnect();src.disconnect();try{r.remove()}catch{}
+    const text=String(final||partial).replace(/\[unk\]/g,' ').replace(/\s+/g,' ').trim();
+    window.karen._asrMs=Math.round(performance.now()-tEnd);log('офлайн:',text||'(пусто)',window.karen._asrMs+' мс');
+    if(!text){const s=newTurn();await sayLine(KarenCommands.sys('fallback'),s,tSpeech);busy=null;return}
+    return handleText(text,tSpeech);
+  }
+  if(!rec)return;const {blob,seconds}=rec.stop();rec=null;
   if((!spoke&&!manual)||seconds<.5){setState('idle');return}
-  processClip(blob,tEnd);
+  processClip(blob,tSpeech);
 }
 async function processClip(blob,tEnd){
-  const be=backend();
-  if(be.name==='demo'){const cs=KarenCommands.data.commands.filter(c=>c.id!=='photo'),c=cs[Math.floor(Math.random()*cs.length)];handleText(c.phrases[0].replace(/\.$/,''),tEnd);return} // offline: no STT, scripted phrase → same local lines
-  setState('thinking');
-  try{const r=await be.stt(blob);window.karen._sttMs=Math.round(performance.now()-tEnd);log('STT:',r.text||'(пусто)',window.karen._sttMs+' мс');
+  const be=backend();setState('thinking');
+  try{const r=await be.stt(blob);log('облако STT:',r.text||'(пусто)');
     if(!r.text){const s=newTurn();await sayLine(KarenCommands.sys('fallback'),s,tEnd);busy=null;return}handleText(r.text,tEnd)}
-  catch(e){log('stt failed:',e.message);setState('error',700);const s=newTurn();await sleep(700,s);await sayLine(KarenCommands.sys('fallback'),s,tEnd);busy=null}
+  catch(e){log('stt failed:',e.message);const s=newTurn();await sayLine(KarenCommands.sys('fallback'),s,tEnd);busy=null}
 }
 $('#stage').addEventListener('pointerdown',e=>{if(document.body.classList.contains('cam'))return;e.preventDefault();listen()});
 addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&$('#menu').hidden)listen()});
@@ -193,25 +217,17 @@ addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&$('#menu').hidden
 let camStream=null,camTimer=null;
 function closeCam(){clearTimeout(camTimer);if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}document.body.classList.remove('cam');const c=$('#cam');c.hidden=true;c.dataset.step=''}
 function drawFrame(g,W,H){
-  const u=Math.min(W,H)/100,G='#BEFF31';g.save();
-  let gr=g.createLinearGradient(0,H*.62,0,H);gr.addColorStop(0,'rgba(8,20,29,0)');gr.addColorStop(1,'rgba(8,20,29,.92)');g.fillStyle=gr;g.fillRect(0,H*.62,W,H*.38);
-  gr=g.createLinearGradient(0,0,0,H*.16);gr.addColorStop(0,'rgba(8,20,29,.7)');gr.addColorStop(1,'rgba(8,20,29,0)');g.fillStyle=gr;g.fillRect(0,0,W,H*.16);
-  const m=3*u,r=3*u;g.strokeStyle=G;g.lineWidth=Math.max(3,.7*u);g.shadowColor=G;g.shadowBlur=2.5*u;
-  g.beginPath();g.roundRect?g.roundRect(m,m,W-2*m,H-2*m,r):g.rect(m,m,W-2*m,H-2*m);g.stroke();
-  // corner brackets
-  g.lineWidth=Math.max(5,1.3*u);const L=8*u,k=m+2.2*u;g.beginPath();
-  [[k,k,1,1],[W-k,k,-1,1],[k,H-k,1,-1],[W-k,H-k,-1,-1]].forEach(([x,y,sx,sy])=>{g.moveTo(x,y+sy*L);g.lineTo(x,y);g.lineTo(x+sx*L,y)});g.stroke();
-  g.shadowBlur=0;g.textBaseline='alphabetic';
-  g.fillStyle=G;g.font=`600 ${2.6*u}px ui-monospace,Menlo,monospace`;g.fillText('● KAREN · ФОТОМОДУЛЬ',k+1.5*u,k+4.5*u);
-  g.textAlign='right';g.fillText('25.10.2026',W-k-1.5*u,k+4.5*u);g.textAlign='left';
-  const x=k+2*u,by=H-k-3*u;
-  g.fillStyle='#fff';g.font=`800 ${7.2*u}px system-ui,"Segoe UI",Roboto,sans-serif`;g.shadowColor='rgba(0,0,0,.6)';g.shadowBlur=1.5*u;
-  g.fillText('ДЕНЬ МАРКЕТОЛОГА',x,by-9.5*u);
-  g.fillStyle=G;g.shadowColor=G;g.shadowBlur=2*u;g.font=`900 ${9*u}px system-ui,"Segoe UI",Roboto,sans-serif`;g.fillText('StP 2026',x,by);
-  // Karen waveform signature
-  const w0=x+g.measureText('StP 2026').width+4*u,w1=W-k-2*u,wy=by-3.2*u;g.lineWidth=Math.max(3,.8*u);g.beginPath();
-  for(let i=0;i<=120;i++){const p=i/120,xx=w0+(w1-w0)*p,env=Math.sin(Math.PI*p);const y=(Math.sin(p*38)*.6+Math.sin(p*13)*.4)*3.2*u*env;i?g.lineTo(xx,wy-y):g.moveTo(xx,wy-y)}
-  if(w1-w0>10*u)g.stroke();g.restore();
+  const u=Math.min(W,H)/100;g.save();
+  // thin white inner border + subtle dark strip with caption — minimal, neutral
+  g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=Math.max(2,.35*u);const m=2.6*u;g.strokeRect(m,m,W-2*m,H-2*m);
+  const sh=15*u,gr=g.createLinearGradient(0,H-sh*1.8,0,H);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(.45,'rgba(0,0,0,.45)');gr.addColorStop(1,'rgba(0,0,0,.6)');g.fillStyle=gr;g.fillRect(0,H-sh*1.8,W,sh*1.8);
+  g.textAlign='center';g.textBaseline='alphabetic';g.fillStyle='#fff';g.shadowColor='rgba(0,0,0,.35)';g.shadowBlur=1.2*u;
+  g.font=`600 ${6.2*u}px "Montserrat","Helvetica Neue",Roboto,"Segoe UI",system-ui,sans-serif`;
+  if('letterSpacing' in g)g.letterSpacing=`${.15*u}px`;
+  g.fillText('День Маркетолога StP 2026',W/2,H-m-6.2*u);
+  g.font=`400 ${2.4*u}px "Helvetica Neue",Roboto,"Segoe UI",system-ui,sans-serif`;g.fillStyle='rgba(255,255,255,.75)';if('letterSpacing' in g)g.letterSpacing=`${.5*u}px`;
+  g.fillText('25 · 10 · 2026',W/2,H-m-2.4*u);
+  g.restore();
 }
 async function photoFlow(line,t0){
   stop(false);const sig=newTurn();const cam=$('#cam'),v=$('#camVideo'),cd=$('#camCount'),res=$('#camResult');
@@ -243,7 +259,7 @@ async function photoFlow(line,t0){
 const corner=$('#corner');let lp=null;
 corner.addEventListener('pointerdown',()=>{lp=setTimeout(openMenu,2000)});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>corner.addEventListener(ev,()=>clearTimeout(lp)));
-function openMenu(){$('#menu').hidden=false;$('#status').textContent=`состояние: ${state} · режим: ${backend().name}`}
+function openMenu(){$('#menu').hidden=false;setState(state)}
 const grid=$('#emoGrid');
 for(const e of KAREN_EMOTIONS){const b=document.createElement('button');b.dataset.emo=e.id;b.title=e.description;b.innerHTML=`<img src="assets/${e.asset_svg}" alt=""><span>${e.name_ru}</span><small>${e.id}</small>`;
   b.onclick=()=>{stop(false);$('#menu').hidden=true;setState(e.id,e.id==='idle'?0:(e.id==='photo'?5000:2500))};grid.append(b)}
@@ -253,13 +269,12 @@ const acts={
   fullscreen:async()=>{try{await document.documentElement.requestFullscreen({navigationUI:'hide'});await screen.orientation?.lock?.('landscape')}catch(e){log('fullscreen:',e.message)}},
   photo:()=>{$('#menu').hidden=true;photoFlow(KarenCommands.line(KarenCommands.intent('фото')),null)},
   send:()=>{const t=$('#debugText').value.trim();if(t){$('#menu').hidden=true;handleText(t,performance.now())}},
-  demoline:()=>{$('#menu').hidden=true;handleText(B.Demo.randomLine(cfg.role),performance.now())},
   mictest:async()=>{try{await openMic();const m=$('#micMeter'),end=Date.now()+5000;(function l(){m.value=micAnalyser?rms(micAnalyser):0;if(Date.now()<end)requestAnimationFrame(l);else closeMic()})()}catch(e){log('mic test:',e.name)}},
   health:async()=>{try{const h=await backend().health();log('health:',JSON.stringify(h))}catch(e){log('health failed:',e.message)}},
 };
 $('#menu').addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(a)acts[a.dataset.act]()});
 const bind=(id,key,prop='value',cast=String)=>{const el=$(id);el[prop]=cfg[key];el.addEventListener('change',()=>{cfg[key]=cast(el[prop]);SS(key,prop==='checked'?(el[prop]?'1':'0'):el[prop]);setState(state)})};
-bind('#endpoint','endpoint');bind('#token','token');bind('#offline','offline','checked',Boolean);bind('#volume','volume','value',Number);bind('#role','role');bind('#subsToggle','subs','checked',Boolean);
+bind('#endpoint','endpoint');bind('#token','token');bind('#cloudToggle','cloud','checked',Boolean);if(location.hash==='#advanced')$('#adv').hidden=false;bind('#volume','volume','value',Number);bind('#role','role');bind('#subsToggle','subs','checked',Boolean);
 bind('#llmToggle','llm','checked',Boolean);
 $('#endpoint').addEventListener('change',e=>{if(/api-key|iam|token=|[?&]key=/i.test(e.target.value)){e.target.value='';cfg.endpoint='';SS('endpoint','');log('URL с ключом отклонён')}});
 
@@ -269,6 +284,6 @@ let lastAct=Date.now();addEventListener('pointerdown',()=>{lastAct=Date.now();if
 setInterval(()=>{if(state==='idle'&&Date.now()-lastAct>180e3)setState('sleep')},5000);
 
 // boot: reboot -> idle
-facesReady.then(()=>{setState('reboot');setTimeout(()=>state==='reboot'&&setState('idle'),1400)});
+facesReady.then(()=>{KarenCommands.ready.then(loadAsr);setState('reboot');setTimeout(()=>state==='reboot'&&setState('idle'),1400)});
 if('serviceWorker' in navigator&&location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(e=>log('sw:',e.message));
 })();
