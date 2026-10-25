@@ -40,7 +40,7 @@ function setState(s,holdMs){
   else if(s==='speaking'&&mood) showFace(mood,true);
   else showFace(null,false);
   if(holdMs) holdTimer=setTimeout(()=>setState('idle'),holdMs);
-  $('#status').textContent=`состояние: ${s} · распознавание: ${ASR.state==='ready'?'офлайн, готово':ASR.state==='loading'?'загружается…':'нет'}`;
+  renderAsr();
 }
 function setMood(m){mood=(m&&!WAVE_STATES.has(m))?m:null;if(state==='speaking')setState('speaking')}
 function clearMood(){mood=null;moodTimers.forEach(clearTimeout);moodTimers=[]}
@@ -159,13 +159,74 @@ async function turnLLM(text,t0){
 
 // ---------- tap-to-listen: own mic capture (getUserMedia → no system beep), simple VAD ----------
 let listenOn=false;
-// ---- on-device recognition: vosk-browser (WASM) + vosk-model-small-ru, restricted grammar from commands.json ----
-const ASR={model:null,state:'off',t:0};
-function loadAsr(){
-  if(ASR.state==='loading'||ASR.state==='ready'||!window.Vosk)return;ASR.state='loading';ASR.t=performance.now();
-  Vosk.createModel(new URL('vosk/vosk-ru-small.tar.gz',location.href).href,-1).then(m=>{ASR.model=m;ASR.state='ready';ASR.loadMs=Math.round(performance.now()-ASR.t);log('офлайн-распознавание готово за',ASR.loadMs+' мс');setState(state)})
-   .catch(e=>{ASR.state='off';log('vosk:',e&&e.message)});
+// ---- on-device recognition: vosk-browser (WASM) + slim vosk-model-small-ru-0.22 (grammar-only), restricted grammar from commands.json ----
+// Model file is downloaded by the page itself (streamed, progress, resume via Range), stored in Cache Storage (persistent),
+// and handed to the Vosk worker as a blob: URL — so the 33 MB download happens once and the worker never touches the network.
+const MODEL_URL='vosk/vosk-ru-slim-v1.tar.gz',MODEL_CACHE='karen-model-v1',MODEL_MB=31;
+const ASR={model:null,state:'none',got:0,total:0,err:'',t:0};
+const MB=b=>(b/1048576).toFixed(1);
+function renderAsr(){
+  const s=ASR.state,pct=ASR.total?Math.floor(100*ASR.got/ASR.total):0;
+  const txt={none:`Офлайн-распознавание не загружено (${MODEL_MB} МБ, один раз)`,downloading:`Скачиваю модель: ${MB(ASR.got)} / ${ASR.total?MB(ASR.total):'?'} МБ · ${pct} %`,
+    starting:'Запускаю распознавание… (до 1 мин)',ready:'Распознавание готово (офлайн)',error:'Ошибка: '+ASR.err}[s];
+  document.querySelectorAll('.mdl-text').forEach(e=>e.textContent=txt);
+  document.querySelectorAll('.mdl-bar').forEach(e=>{e.hidden=!(s==='downloading'||s==='starting');e.value=s==='starting'?1:(ASR.total?ASR.got/ASR.total:0)});
+  document.querySelectorAll('.mdl-btn').forEach(e=>{e.hidden=!(s==='none'||s==='error');e.textContent=s==='error'?'Повторить':'Скачать модель распознавания'});
+  $('#modelPanel').hidden=s==='ready';document.body.dataset.asr=s;
+  if(state)$('#status').textContent=`состояние: ${state} · ${txt}`;
 }
+const withTimeout=(p,ms,msg)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error(msg)),ms))]);
+async function fetchModel(){ // streamed download with progress, stall timeout and resume
+  const chunks=[];ASR.got=0;ASR.total=0;let tries=0;
+  while(true){
+    const ctl=new AbortController();let stall;const kick=()=>{clearTimeout(stall);stall=setTimeout(()=>ctl.abort(),25000)};
+    try{
+      kick();const r=await fetch(MODEL_URL,{cache:'no-store',signal:ctl.signal,headers:ASR.got?{Range:`bytes=${ASR.got}-`}:{}});
+      if(ASR.got&&r.status!==206){chunks.length=0;ASR.got=0} // server ignored Range → restart
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      if(!ASR.total)ASR.total=+(r.headers.get('Content-Length')||0)+ASR.got||MODEL_MB*1048576;
+      const rd=r.body.getReader();
+      for(;;){const {done,value}=await rd.read();if(done)break;chunks.push(value);ASR.got+=value.length;kick();renderAsr()}
+      clearTimeout(stall);break;
+    }catch(e){clearTimeout(stall);if(++tries>6)throw new Error(navigator.onLine?'загрузка прерывается ('+(e.name==='AbortError'?'нет данных 25 с':e.message)+')':'нет интернета');
+      log('model download retry',tries,e.name);await new Promise(r=>setTimeout(r,1500*tries))}
+  }
+  const blob=new Blob(chunks,{type:'application/gzip'});
+  if(blob.size<20e6)throw new Error('файл модели повреждён ('+MB(blob.size)+' МБ)');
+  try{const c=await caches.open(MODEL_CACHE);await c.put(MODEL_URL,new Response(blob,{headers:{'Content-Type':'application/gzip','Content-Length':String(blob.size)}}))}
+  catch(e){log('cache put failed:',e.name)} // still usable this session
+  return blob;
+}
+async function startModel(blob){
+  ASR.state='starting';renderAsr();const url=URL.createObjectURL(blob);
+  const m=new Vosk.Model(url,-1);
+  try{await withTimeout(new Promise((res,rej)=>{m.on('load',e=>e.result?res():rej(new Error('модель не открылась')));m.on('error',e=>rej(new Error(String(e.error||'ошибка движка'))));
+      m.worker.addEventListener('error',e=>rej(new Error('сбой движка: '+(e.message||'нехватка памяти?'))))}),90000,'движок не запустился за 90 с (мало памяти?)')}
+  catch(e){try{m.worker.terminate()}catch{}URL.revokeObjectURL(url);throw e}
+  URL.revokeObjectURL(url);return m;
+}
+async function loadAsr(download){
+  if(['downloading','starting','ready'].includes(ASR.state))return;
+  if(!window.Vosk||!window.WebAssembly){ASR.state='error';ASR.err='браузер не поддерживает WebAssembly';return renderAsr()}
+  ASR.t=performance.now();
+  try{
+    let blob=null;try{const r=await (await caches.open(MODEL_CACHE)).match(MODEL_URL);if(r)blob=await r.blob()}catch{}
+    if(!blob){if(!download){ASR.state='none';return renderAsr()}
+      ASR.state='downloading';renderAsr();try{await navigator.storage?.persist?.()}catch{}blob=await fetchModel();log('модель скачана',MB(blob.size)+' МБ за',Math.round((performance.now()-ASR.t)/1000)+' с')}
+    ASR.model=await startModel(blob);ASR.state='ready';ASR.loadMs=Math.round(performance.now()-ASR.t);log('офлайн-распознавание готово за',ASR.loadMs+' мс');
+  }catch(e){ASR.state='error';ASR.err=e.message;log('распознавание:',e.message)}
+  renderAsr();setState(state);
+}
+document.addEventListener('click',e=>{if(e.target.closest('.mdl-btn')){e.stopPropagation();loadAsr(true)}});
+// ---- install to home screen ----
+let installEvt=null;
+const standalone=()=>matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches||navigator.standalone;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;renderInstall()});
+addEventListener('appinstalled',()=>{installEvt=null;log('приложение установлено');renderInstall()});
+function renderInstall(){document.querySelectorAll('.inst-btn').forEach(b=>b.hidden=standalone())}
+document.addEventListener('click',async e=>{if(!e.target.closest('.inst-btn'))return;e.stopPropagation();
+  if(installEvt){installEvt.prompt();const c=await installEvt.userChoice.catch(()=>({}));log('установка:',c.outcome||'?');installEvt=null;renderInstall()}
+  else document.querySelectorAll('.inst-help').forEach(h=>h.hidden=!h.hidden)});
 function grammar(){const d=KarenCommands.data;return JSON.stringify([...new Set([...(d.grammar||[]),...d.name.filter(n=>!n.includes(' '))])].concat('[unk]'))}
 const VAD={silence:450,max:8000,noSpeech:5000};
 async function listen(){
@@ -173,7 +234,7 @@ async function listen(){
   stop(false);ac();warmDecode();
   try{await openMic()}catch(e){log('mic error:',e.name);setState('error',1500);return}
   const offline=ASR.state==='ready',cloud=!offline&&cfg.cloud&&backend().name==='cloud';
-  if(!offline&&!cloud){const s=newTurn();await sayLine(KarenCommands.sys('asr_loading')||KarenCommands.sys('fallback'),s,null);busy=null;return}
+  if(!offline&&!cloud){if(ASR.state==='none'||ASR.state==='error')loadAsr(true);const s=newTurn();await sayLine(KarenCommands.sys('asr_loading')||KarenCommands.sys('fallback'),s,null);busy=null;return}
   listenOn=true;setState('listening');
   let r=null,partial='',final=null,proc=null,src=null;
   if(offline){
@@ -284,6 +345,7 @@ let lastAct=Date.now();addEventListener('pointerdown',()=>{lastAct=Date.now();if
 setInterval(()=>{if(state==='idle'&&Date.now()-lastAct>180e3)setState('sleep')},5000);
 
 // boot: reboot -> idle
-facesReady.then(()=>{KarenCommands.ready.then(loadAsr);setState('reboot');setTimeout(()=>state==='reboot'&&setState('idle'),1400)});
+try{indexedDB.deleteDatabase("/vosk")}catch{} // v1.4 left a ~90 MB IndexedDB copy of the model; we keep only the Cache Storage tar now
+facesReady.then(()=>{KarenCommands.ready.then(()=>loadAsr(false));renderInstall();setState('reboot');setTimeout(()=>state==='reboot'&&setState('idle'),1400)});
 if('serviceWorker' in navigator&&location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(e=>log('sw:',e.message));
 })();
