@@ -4,9 +4,7 @@ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;touch-action
 #stage{position:fixed;inset:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);display:grid;place-items:center}
 #wave,#faces{position:absolute;inset:0;width:100%;height:100%}
 #wave{transition:opacity var(--t) ease}
-#faces img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transform:scale(.97);transition:opacity var(--t) ease,transform var(--t) ease;pointer-events:none}
-#faces img.on{opacity:1;transform:scale(1)}
-body.face #wave{opacity:0}
+body.faceon #wave{opacity:0}
 #subs{position:absolute;bottom:6%;left:10%;right:10%;text-align:center;color:var(--g);font-size:clamp(18px,3vw,34px);text-shadow:0 0 12px #beff3188}
 #corner{position:fixed;top:0;right:0;width:max(90px,10vmin);height:max(90px,10vmin);z-index:5}
 #ptt{position:fixed;left:0;bottom:0;width:30vw;height:45vh;border:0;background:transparent;z-index:4;outline:none}

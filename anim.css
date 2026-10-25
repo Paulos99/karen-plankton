@@ -1,0 +1,89 @@
+/* Animated emotions. Base art = inline asset SVGs; animations via CSS on their parts + particle overlays. */
+.face{position:absolute;inset:0;opacity:0;transform:scale(.94);transition:opacity var(--t) ease,transform var(--t) ease;pointer-events:none}
+.face.on{opacity:1;transform:scale(1)}
+.face svg{width:100%;height:100%;display:block}
+.face svg>rect{fill:transparent}
+.face svg *{transform-box:fill-box;transform-origin:center}
+.face .p{opacity:0}
+/* while speaking: emotion overlay in upper area, waveform stays */
+body.overlay #faces{transform:translateY(-18%) scale(.55);opacity:.8;transition:transform var(--t) ease,opacity var(--t) ease}
+#faces{transition:transform var(--t) ease,opacity var(--t) ease}
+/* tints (whole stage glow) */
+#stage::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity var(--t) ease;background:radial-gradient(ellipse at center,var(--tint,transparent),transparent 65%)}
+body[data-mood=love] #stage::after{--tint:#fe536233;opacity:1}
+body[data-mood=angry] #stage::after{--tint:#ff2a2a40;opacity:1;animation:flick 0.9s steps(2) infinite}
+body[data-mood=error] #stage::after{--tint:#ff2a2a30;opacity:1}
+body[data-mood=jealous] #stage::after{--tint:#2affd033;opacity:1}
+body[data-mood=photo] #stage::after{--tint:#ffffff22;opacity:1}
+@keyframes flick{0%{opacity:1}50%{opacity:.35}}
+
+/* ---- per emotion ---- */
+.on.f-smile svg>g{animation:bob 2.4s ease-in-out infinite}
+.on.f-smile svg>g>:nth-child(-n+2){animation:blink 3.2s infinite}
+.on.f-laugh svg>g{animation:bounce .42s ease-in-out infinite}
+.on.f-laugh svg>g>:nth-child(3){animation:mouthLaugh .42s ease-in-out infinite}
+.on.f-photo svg>g{animation:pose 3s ease-in-out infinite}
+.on.f-photo .flash{animation:flash 3s ease-out infinite}
+.on.f-photo .star{animation:twinkle 1.4s ease-in-out infinite}.on.f-photo .star:nth-of-type(2n){animation-delay:.5s}
+.on.f-sarcasm svg>g>:nth-child(2){animation:browUp 1.6s ease-in-out infinite}
+.on.f-sarcasm svg>g>:nth-child(1){animation:squint 1.6s ease-in-out infinite}
+.on.f-sarcasm svg>g>:nth-child(3){animation:smirk 1.6s ease-in-out infinite}
+.on.f-proud svg>g{animation:chinUp 2.2s ease-in-out infinite}
+.on.f-proud .star{animation:twinkle 1.6s ease-in-out infinite}
+.on.f-suspicious svg>g>:nth-child(-n+2){animation:glance 2.4s ease-in-out infinite}
+.on.f-suspicious svg>g>:nth-child(3){animation:tight 2.4s ease-in-out infinite}
+.on.f-annoyed svg>g{animation:sigh 2.6s ease-in-out infinite}
+.on.f-annoyed svg>g>:nth-child(-n+2){animation:twitch 2.6s steps(1) infinite}
+.on.f-angry svg>g{animation:shake .18s linear infinite}
+.on.f-angry svg>g>*{animation:redflick .5s steps(2) infinite}
+.on.f-angry svg>g>:nth-child(-n+2){animation:redflick .5s steps(2) infinite,browDown .9s ease-in-out infinite}
+.on.f-love svg>g>path:first-child{animation:beat 1s ease-in-out infinite}
+.on.f-love .heart{animation:floatUp 2.8s ease-in infinite}
+.on.f-love .heart:nth-of-type(2){animation-delay:.6s}.on.f-love .heart:nth-of-type(3){animation-delay:1.2s}.on.f-love .heart:nth-of-type(4){animation-delay:1.8s}.on.f-love .heart:nth-of-type(5){animation-delay:2.3s}
+.on.f-jealous svg>g>:nth-child(-n+2){animation:sideEye 1.8s ease-in-out infinite}
+.on.f-jealous svg>g{animation:jtint 1.8s ease-in-out infinite}
+.on.f-surprised svg>g{animation:pop .5s cubic-bezier(.2,1.8,.4,1) both, bob 1.8s ease-in-out .5s infinite}
+.on.f-surprised svg>g>:nth-child(3){animation:oh 1.2s ease-in-out infinite}
+.on.f-sad svg>g{animation:droop 3s ease-in-out infinite}
+.on.f-sad .tear{animation:tear 2.2s ease-in infinite}.on.f-sad .tear:nth-of-type(2){animation-delay:1.1s}
+.on.f-sleep svg>g{animation:breathe 4s ease-in-out infinite}
+.on.f-sleep .z{animation:zzz 3.6s ease-out infinite}.on.f-sleep .z:nth-of-type(2){animation-delay:1.2s}.on.f-sleep .z:nth-of-type(3){animation-delay:2.4s}
+.on.f-error svg>g{animation:glitch .9s steps(3) infinite}
+.on.f-error svg>g>:nth-child(n+2){animation:blinkRed .5s steps(2) infinite}
+.on.f-confused svg>g>:nth-child(4),.on.f-confused svg>g>:nth-child(5){animation:wobble 1.4s ease-in-out infinite}
+.on.f-confused svg>g>:nth-child(-n+2){animation:tilt 2.8s ease-in-out infinite}
+.on.f-listening svg>g{animation:breathe 1.2s ease-in-out infinite}
+
+@keyframes bob{50%{transform:translateY(-8px)}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.15)}}
+@keyframes bounce{50%{transform:translateY(-22px) scale(1.02)}}
+@keyframes mouthLaugh{50%{transform:scaleY(.75)}}
+@keyframes pose{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg) scale(1.03)}}
+@keyframes flash{0%{opacity:.9}12%{opacity:0}100%{opacity:0}}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1.1) rotate(45deg)}}
+@keyframes browUp{0%,100%{transform:translateY(0)}35%,70%{transform:translateY(-22px) rotate(-6deg)}}
+@keyframes squint{0%,100%{transform:scaleY(1)}35%,70%{transform:scaleY(.6) translateY(4px)}}
+@keyframes smirk{0%,100%{transform:rotate(0)}35%,70%{transform:rotate(-4deg) translateX(10px)}}
+@keyframes chinUp{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-10px) rotate(-2deg)}}
+@keyframes glance{0%,100%{transform:translateX(0)}30%,45%{transform:translateX(-26px)}65%,80%{transform:translateX(26px)}}
+@keyframes tight{50%{transform:scaleX(.85)}}
+@keyframes sigh{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+@keyframes twitch{0%,88%{transform:none}90%{transform:translateY(-6px)}94%{transform:none}}
+@keyframes shake{0%{transform:translate(0,0)}25%{transform:translate(-5px,2px)}50%{transform:translate(4px,-2px)}75%{transform:translate(-3px,-1px)}}
+@keyframes redflick{0%{stroke:#BEFF31}50%{stroke:#FF4A3A}}
+@keyframes browDown{50%{transform:translateY(8px)}}
+@keyframes beat{0%,100%{transform:scale(1)}15%{transform:scale(1.14)}30%{transform:scale(.97)}45%{transform:scale(1.1)}}
+@keyframes floatUp{0%{opacity:0;transform:translateY(40px) scale(.5)}15%{opacity:.95}100%{opacity:0;transform:translateY(-260px) scale(1.1) rotate(12deg)}}
+@keyframes sideEye{0%,100%{transform:translateX(0)}50%{transform:translateX(30px) rotate(4deg)}}
+@keyframes jtint{50%{filter:hue-rotate(60deg)}}
+@keyframes pop{0%{transform:scale(.6)}100%{transform:scale(1)}}
+@keyframes oh{50%{transform:scale(1.18)}}
+@keyframes droop{0%,100%{transform:translateY(0)}50%{transform:translateY(12px)}}
+@keyframes tear{0%{opacity:0;transform:translateY(0) scale(.6)}20%{opacity:.9}100%{opacity:0;transform:translateY(160px) scale(1)}}
+@keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes zzz{0%{opacity:0;transform:translate(0,0) scale(.6)}25%{opacity:1}100%{opacity:0;transform:translate(90px,-170px) scale(1.4)}}
+@keyframes glitch{0%{transform:translate(0)}33%{transform:translate(-9px,3px) skewX(6deg)}66%{transform:translate(7px,-2px)}}
+@keyframes blinkRed{0%{stroke:#FF4A3A;opacity:1}50%{opacity:.2}}
+@keyframes wobble{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(12deg) translateY(-6px)}}
+@keyframes tilt{50%{transform:translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){.face *{animation-duration:3s!important}}

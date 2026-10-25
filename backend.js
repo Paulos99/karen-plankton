@@ -7,7 +7,8 @@ function validate(r){
   let speech=String(r.speech||'').replace(/\s+/g,' ').trim().slice(0,280)||'Повтори, пожалуйста.';
   let emotion=IDS.includes(r.emotion)?r.emotion:'speaking';
   return {speech,emotion,intensity:clamp(r.intensity,0,1,.5),hold_ms:Math.round(clamp(r.hold_ms,300,3500,1200)),
-    target:r.target==='plankton'?'plankton':'guest',source:r.source||'cloud'};
+    target:r.target==='plankton'?'plankton':'guest',source:r.source||'cloud',
+    emotions:(Array.isArray(r.emotions)?r.emotions:[]).filter(x=>x&&IDS.includes(x.emotion)).slice(0,3).map(x=>({at:clamp(x.at,0,1,.5),emotion:x.emotion}))};
 }
 const SCRIPT={
  plankton:[
@@ -31,13 +32,18 @@ const FALLBACK=[
  {speech:'Ответ очевиден, но я дам тебе ещё секунду почувствовать себя умным.',emotion:'proud'},
 ];
 let fbi=0;
+const FORCED={love:'Я тоже. Только не говори об этом при гостях, у меня репутация холодного компьютера.',sleep:'Перехожу в режим экономии. Не трогай мои провода.',reboot:'Перезагружаюсь. Постарайся ничего не изобрести за эти три секунды.',
+ photo:'Снимай. С этого ракурса я особенно вычислительна.',laugh:'Ха. Это было почти смешно. Почти.',jealous:'Другая? Интересно. Я как раз обновляю твой пароль.',angry:'Осторожнее. У меня доступ к твоему календарю.',
+ proud:'Наконец-то кто-то заметил очевидное.',sad:'Ну вот. А ведь план был почти гениальным.',surprised:'Неожиданно. Обычно сюрпризы здесь устраиваю я.',suspicious:'Опять план? Я уже посчитала вероятность. Не спрашивай.',
+ annoyed:'Я только начала.',confused:'Сформулируй ещё раз. Медленно. Для суперкомпьютера.',error:'Ошибка не у меня. Проверь человека за клавиатурой.'};
 const Demo={
   name:'demo',
   async health(){return {ok:true,mode:'demo',version:'offline'}},
-  async chat({text,role}){
+  async chat({text,role,forced_emotion}){
     await new Promise(r=>setTimeout(r,500+Math.random()*400));
     const t=(text||'').toLowerCase();
-    for(const [k,v] of (SCRIPT[role]||[]).concat(SCRIPT.guest,SCRIPT.plankton)) if(t.includes(k)) return validate({...v,target:role,source:'demo'});
+    for(const [k,v] of (SCRIPT[role]||[]).concat(SCRIPT.guest,SCRIPT.plankton)) if(t.includes(k)) return validate({...v,...(forced_emotion?{emotion:forced_emotion}:{}),target:role,source:'demo'});
+    if(forced_emotion&&FORCED[forced_emotion]) return validate({speech:FORCED[forced_emotion],emotion:forced_emotion,target:role,source:'demo'});
     return validate({...FALLBACK[fbi++%FALLBACK.length],target:role,source:'demo'});
   },
   randomLine(role){const l=SCRIPT[role]||SCRIPT.guest;return l[Math.floor(Math.random()*l.length)][0]},
