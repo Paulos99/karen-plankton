@@ -52,7 +52,7 @@ body[data-mood=photo] #stage::after{--tint:#ffffff22;opacity:1}
 .on.f-error svg>g>:nth-child(n+2){animation:blinkRed .5s steps(2) infinite}
 .on.f-confused svg>g>:nth-child(4),.on.f-confused svg>g>:nth-child(5){animation:wobble 1.4s ease-in-out infinite}
 .on.f-confused svg>g>:nth-child(-n+2){animation:tilt 2.8s ease-in-out infinite}
-.on.f-listening svg>g{animation:breathe 1.2s ease-in-out infinite}
+
 
 @keyframes bob{50%{transform:translateY(-8px)}}
 @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.15)}}

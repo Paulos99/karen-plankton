@@ -25,7 +25,7 @@ const facesReady=Promise.all(KAREN_EMOTIONS.map(async e=>{
 }));
 
 // ---------- state machine ----------
-const WAVE_STATES=new Set(['idle','speaking','thinking','reboot']); // drawn live on canvas
+const WAVE_STATES=new Set(['idle','listening','speaking','thinking','reboot']); // drawn live on canvas
 let state='idle',holdTimer=null,busy=null,level=0,targetLevel=0,mood=null,moodTimers=[];
 function showFace(id,overlay){
   document.body.classList.toggle('faceon',!!id&&!overlay);
@@ -51,27 +51,41 @@ const cv=$('#wave'),cx=cv.getContext('2d');
 function resize(){const r=devicePixelRatio||1;cv.width=innerWidth*r;cv.height=innerHeight*r}
 addEventListener('resize',resize);resize();
 let t0=performance.now();
+const WS=['idle','listening','speaking','thinking','reboot'],wt={idle:1,listening:0,speaking:0,thinking:0,reboot:0};
 function draw(now){
   const t=(now-t0)/1000,W=cv.width,H=cv.height,r=devicePixelRatio||1;const mid=document.body.classList.contains('overlay')?H*.78:H/2;
-  level+=(targetLevel-level)*.25;
+  level+=(targetLevel-level)*(state==='listening'?.12:.25);
+  const cur=WS.includes(state)?state:'idle';for(const k of WS)wt[k]+=((k===cur?1:0)-wt[k])*.1; // smooth crossfade between wave states
   cx.fillStyle='#08141D';cx.fillRect(0,0,W,H);
-  const x0=W*.11,x1=W*.89,n=160;
-  cx.lineWidth=Math.max(4,H*.022);cx.lineCap='round';cx.lineJoin='round';
-  cx.strokeStyle='#BEFF31';cx.shadowColor='#BEFF31';cx.shadowBlur=18*r;
-  let alpha=1;
-  cx.globalAlpha=alpha;cx.beginPath();
+  const x0=W*.11,x1=W*.89,n=160,L=wt.listening;
+  cx.lineWidth=Math.max(4,H*.022)*(1+.25*L);cx.lineCap='round';cx.lineJoin='round';
+  cx.strokeStyle='#BEFF31';cx.shadowColor='#BEFF31';cx.shadowBlur=(18+10*L)*r;
+  cx.globalAlpha=1;cx.beginPath();
+  const tc=(t*.6)%1;
   for(let i=0;i<=n;i++){
     const p=i/n,x=x0+(x1-x0)*p,env=Math.sin(Math.PI*p);let y=0;
-    if(state==='idle') y=Math.sin(p*18+t*2)*H*.006*env;
-    else if(state==='speaking') y=(Math.sin(p*40+t*14)*.6+Math.sin(p*13-t*9)*.4)*H*.32*(.08+level)*env;
-    else if(state==='listening') y=Math.sin(p*26+t*8)*H*.22*(.03+level)*env;
-    else if(state==='thinking'){const c=(t*.6)%1;y=Math.exp(-((p-c)**2)/.002)*H*.06*Math.sin(p*60)}
-    else if(state==='reboot') y=0;
+    if(wt.idle>.001) y+=wt.idle*Math.sin(p*18+t*2)*H*.006*env;
+    if(wt.speaking>.001) y+=wt.speaking*(Math.sin(p*40+t*14)*.6+Math.sin(p*13-t*9)*.4)*H*.32*(.08+level)*env;
+    if(L>.001) y+=L*(Math.sin(p*14+t*3)*.65+Math.sin(p*23-t*2.2)*.35)*H*(.006+.2*level)*env*env;
+    if(wt.thinking>.001) y+=wt.thinking*Math.exp(-((p-tc)**2)/.002)*H*.06*Math.sin(p*60);
     i?cx.lineTo(x,mid-y):cx.moveTo(x,mid-y);
   }
-  if(state==='thinking'){cx.stroke();cx.beginPath()} else cx.stroke();
-  if(state==='thinking'){for(let k=0;k<3;k++){const ang=t*2.4+k*2.094;cx.globalAlpha=.5+.5*Math.sin(t*3+k);cx.beginPath();cx.arc(W/2+Math.cos(ang)*H*.1,mid-H*.16+Math.sin(ang)*H*.04,H*.016,0,7);cx.fillStyle='#BEFF31';cx.fill()}}
-  if(state==='reboot'){for(let k=0;k<3;k++){const a=(Math.sin(t*5-k*.8)+1)/2;cx.globalAlpha=.25+.75*a;cx.beginPath();cx.arc(W/2+(k-1)*W*.05,mid-H*.12,H*.018,0,7);cx.fillStyle='#BEFF31';cx.fill()}}
+  cx.stroke();
+  if(wt.thinking>.02){for(let k=0;k<3;k++){const ang=t*2.4+k*2.094;cx.globalAlpha=wt.thinking*(.5+.5*Math.sin(t*3+k));cx.beginPath();cx.arc(W/2+Math.cos(ang)*H*.1,mid-H*.16+Math.sin(ang)*H*.04,H*.016,0,7);cx.fillStyle='#BEFF31';cx.fill()}}
+  if(wt.reboot>.02){for(let k=0;k<3;k++){const a=(Math.sin(t*5-k*.8)+1)/2;cx.globalAlpha=wt.reboot*(.25+.75*a);cx.beginPath();cx.arc(W/2+(k-1)*W*.05,mid-H*.12,H*.018,0,7);cx.fillStyle='#BEFF31';cx.fill()}}
+  if(L>.02){ // cute line-art ear + incoming sound arcs (listening)
+    const S=H*.13,ex=W/2+S*.35,ey=mid-H*.2,tilt=Math.sin(t*1.6)*.06+level*.08;
+    cx.save();cx.translate(ex,ey);cx.rotate(tilt);cx.scale(.9+.1*L,.9+.1*L);cx.globalAlpha=L;
+    cx.lineWidth=Math.max(3,H*.012);cx.strokeStyle='#BEFF31';cx.shadowBlur=14*r;
+    cx.beginPath();cx.moveTo(-S*.15,S*.95);cx.bezierCurveTo(-S*.75,S*.95,-S*.75,S*.35,-S*.55,S*.05);
+    cx.bezierCurveTo(-S*.95,-S*.55,-S*.35,-S*1.05,S*.1,-S*.95);cx.bezierCurveTo(S*.65,-S*.85,S*.75,-S*.2,S*.35,S*.2);
+    cx.bezierCurveTo(S*.1,S*.45,S*.2,S*.8,-S*.15,S*.95);cx.stroke();
+    cx.beginPath();cx.moveTo(-S*.2,S*.35);cx.bezierCurveTo(-S*.5,S*.0,-S*.25,-S*.55,S*.1,-S*.5);cx.bezierCurveTo(S*.35,-S*.45,S*.35,-S*.15,S*.1,S*.0);cx.stroke();
+    cx.restore();
+    for(let k=0;k<3;k++){const ph=((t*.7+k/3)%1),a=Math.sin(Math.PI*ph)*(.25+.75*Math.min(1,level*2.5));
+      cx.globalAlpha=L*a;cx.lineWidth=Math.max(3,H*.01);const R=S*(1.9-ph*.9);
+      cx.beginPath();cx.arc(ex+S*.35,ey,R,Math.PI*.82,Math.PI*1.18);cx.stroke()}
+  }
   cx.globalAlpha=1;cx.shadowBlur=0;
   requestAnimationFrame(draw);
 }
@@ -254,7 +268,7 @@ async function listen(){
   const tS=performance.now();let spoke=false,lastVoice=tS,floor=.02,n=0;
   await new Promise(res=>{(function loop(){
     if(!listenOn)return res();
-    const v=micAnalyser?rms(micAnalyser):0,now=performance.now();targetLevel=Math.min(1,v*1.5);
+    const v=micAnalyser?rms(micAnalyser):0,now=performance.now();targetLevel=Math.min(1,v*1.2);
     if(now-tS<300){floor=(floor*n+v)/(++n)}else{const th=Math.max(.05,floor*2.5);if(v>th){spoke=true;lastVoice=now}}
     const el=now-tS;
     if((spoke&&now-lastVoice>VAD.silence)||el>VAD.max||(!spoke&&el>VAD.noSpeech))return res();
