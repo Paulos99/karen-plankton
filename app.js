@@ -3,7 +3,7 @@ const $=s=>document.querySelector(s), B=KarenBackend;
 const T=180; // transition ms (120–220)
 const LS=k=>localStorage.getItem('karen.'+k), SS=(k,v)=>localStorage.setItem('karen.'+k,v);
 const DEFAULT_EP='https://d5dtcref7c17ac6u1m8s.d8epmcec.apigw.yandexcloud.net';
-const cfg={endpoint:LS('endpoint')||DEFAULT_EP,token:LS('token')||'',cloud:LS('cloud')==='1',volume:+(LS('volume')||1),role:LS('role')||'guest',subs:LS('subs')==='1',llm:LS('llm')==='1'};
+const cfg={endpoint:LS('endpoint')||DEFAULT_EP,token:LS('token')||'',cloud:LS('cloud')==='1',volume:+(LS('volume')||1),role:LS('role')||'guest',subs:LS('subs')==='1',llm:LS('llm')==='1',wake:LS('wake')!=='0'};
 const log=(...a)=>{const l=$('#log');l.textContent=(new Date().toLocaleTimeString()+' '+a.join(' ')+'\n'+l.textContent).slice(0,4000)};
 
 // ---------- faces (inline asset SVGs + animated particles, all precached) ----------
@@ -26,7 +26,7 @@ const facesReady=Promise.all(KAREN_EMOTIONS.map(async e=>{
 
 // ---------- state machine ----------
 const WAVE_STATES=new Set(['idle','listening','speaking','thinking','reboot']); // drawn live on canvas
-let state='idle',holdTimer=null,busy=null,level=0,targetLevel=0,mood=null,moodTimers=[];
+let micLvl=0,state='idle',holdTimer=null,busy=null,level=0,targetLevel=0,mood=null,moodTimers=[];
 function showFace(id,overlay){
   document.body.classList.toggle('faceon',!!id&&!overlay);
   document.body.classList.toggle('overlay',!!id&&overlay);
@@ -64,7 +64,7 @@ function draw(now){
   const tc=(t*.6)%1;
   for(let i=0;i<=n;i++){
     const p=i/n,x=x0+(x1-x0)*p,env=Math.sin(Math.PI*p);let y=0;
-    if(wt.idle>.001) y+=wt.idle*Math.sin(p*18+t*2)*H*.006*env;
+    if(wt.idle>.001) y+=wt.idle*(Math.sin(p*18+t*2)*H*.006+Math.sin(p*22-t*3)*H*.05*micLvl)*env;
     if(wt.speaking>.001) y+=wt.speaking*(Math.sin(p*40+t*14)*.6+Math.sin(p*13-t*9)*.4)*H*.32*(.08+level)*env;
     if(L>.001) y+=L*(Math.sin(p*14+t*3)*.65+Math.sin(p*23-t*2.2)*.35)*H*(.006+.2*level)*env*env;
     if(wt.thinking>.001) y+=wt.thinking*Math.exp(-((p-tc)**2)/.002)*H*.06*Math.sin(p*60);
@@ -118,7 +118,7 @@ async function playBuf(buf,signal){
   const ctx=ac(),s=ctx.createBufferSource(),g=ctx.createGain(),an=ctx.createAnalyser();
   g.gain.value=cfg.volume;s.buffer=buf;s.connect(an);an.connect(g);g.connect(ctx.destination);an.fftSize=1024;playing=s;
   return new Promise(res=>{const tick=()=>{if(playing!==s)return res();targetLevel=rms(an);requestAnimationFrame(tick)};
-    s.onended=()=>{if(playing===s)playing=null;targetLevel=0;res()};signal&&signal.addEventListener('abort',()=>{try{s.stop()}catch{}res()});s.start();window.karen._voiceAt=performance.now();tick()});
+    s.onended=()=>{if(playing===s)playing=null;targetLevel=0;wakeMute();res()};signal&&signal.addEventListener('abort',()=>{try{s.stop()}catch{}res()});s.start();window.karen._voiceAt=performance.now();tick()});
 }
 async function playBlob(blob,signal){return playBuf(await ac().decodeAudioData(await blob.arrayBuffer()),signal)}
 // prerecorded SpeechKit (jane) lines: bytes fetched at boot (SW-precached), decoded once
@@ -127,7 +127,7 @@ KarenCommands.ready.then(()=>{for(const f of KarenCommands.allFiles()) raw[f]=fe
 async function clip(f){if(decoded[f])return decoded[f];const ab=await (raw[f]||(raw[f]=fetch(f).then(r=>r.ok?r.arrayBuffer():null)));if(!ab)throw new Error('no audio '+f);return decoded[f]=await ac().decodeAudioData(ab.slice(0))}
 let warmed=false;function warmDecode(){if(warmed)return;warmed=true;for(const f of Object.keys(raw)) clip(f).catch(()=>{})}
 // silent envelope (never a browser voice) — only if an audio file is missing
-function fakeVoice(text,signal){return new Promise(res=>{const ms=Math.min(6000,600+text.length*45),t=performance.now();let done=false;const fin=()=>{if(!done){done=true;targetLevel=0;res()}};
+function fakeVoice(text,signal){return new Promise(res=>{const ms=Math.min(6000,600+text.length*45),t=performance.now();let done=false;const fin=()=>{if(!done){done=true;targetLevel=0;wakeMute();res()}};
   (function env(){if(done)return;const k=(performance.now()-t)/1000;targetLevel=.35+.3*Math.abs(Math.sin(k*9));requestAnimationFrame(env)})();setTimeout(fin,ms);signal&&signal.addEventListener('abort',fin)})}
 
 // ---------- backend ----------
@@ -136,7 +136,7 @@ let history=[],lastTurn=0,lastLat=null;
 const sleep=(ms,sig)=>new Promise(r=>{const t=setTimeout(r,ms);sig&&sig.addEventListener('abort',()=>{clearTimeout(t);r()})});
 function newTurn(){stop(false);const a=new AbortController();busy=a;return a.signal}
 function showSubs(t){const s=$('#subs');s.hidden=!cfg.subs||!t;s.textContent=t}
-function stop(full=true){if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle')}}
+function stop(full=true){if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle');if(wake.wanted)setTimeout(ensureWake,600)}}
 function markLatency(t0){if(t0==null)return;lastLat=Math.round(window.karen._voiceAt-t0);log('задержка (конец речи → голос):',lastLat+' мс')}
 // play one prerecorded line with its emotion; resolves when done
 async function sayLine(l,sig,t0,{after=true}={}){
@@ -237,7 +237,7 @@ async function loadAsr(download){
     let blob=null;try{const r=await (await caches.open(MODEL_CACHE)).match(MODEL_URL);if(r)blob=await r.blob()}catch{}
     if(!blob){if(!download){ASR.state='none';return renderAsr()}
       ASR.state='downloading';renderAsr();try{await navigator.storage?.persist?.()}catch{}blob=await fetchModel();log('модель скачана',MB(blob.size)+' МБ за',Math.round((performance.now()-ASR.t)/1000)+' с')}
-    ASR.model=await startModel(blob);ASR.state='ready';ASR.loadMs=Math.round(performance.now()-ASR.t);log('офлайн-распознавание готово за',ASR.loadMs+' мс');
+    ASR.model=await startModel(blob);ASR.state='ready';if(wake.wanted)setTimeout(ensureWake,0);ASR.loadMs=Math.round(performance.now()-ASR.t);log('офлайн-распознавание готово за',ASR.loadMs+' мс');
   }catch(e){ASR.state='error';ASR.err=e.message;log('распознавание:',e.message)}
   renderAsr();setState(state);
 }
@@ -298,6 +298,54 @@ async function processClip(blob,tEnd){
     if(!r.text){const s=newTurn();await sayLine(KarenCommands.sys('fallback'),s,tEnd);busy=null;return}handleText(r.text,tEnd)}
   catch(e){log('stt failed:',e.message);const s=newTurn();await sayLine(KarenCommands.sys('fallback'),s,tEnd);busy=null}
 }
+
+// ---------- hands-free wake word «Карен» on the same offline vosk model (no Google, no beep) ----------
+// A second, always-on KaldiRecognizer is fed from the open mic only while Karen is idle (not speaking/listening/camera),
+// resumes WAKE_RESUME ms after her audio ends, and fires only if a name word is recognised with conf ≥ WAKE_CONF + cooldown.
+const WAKE_CONF=.6,WAKE_COOLDOWN=1500,WAKE_RESUME=300;
+const wake={wanted:false,rec:null,proc:null,src:null,muteUntil:0,dirty:false,last:0,lastVoice:0,lock:null,count:0};
+window.karen.wake=wake;
+function wakeMute(){wake.muteUntil=performance.now()+WAKE_RESUME;wake.dirty=true}
+const wakeBlocked=()=>!cfg.wake||listenOn||playing||state==='speaking'||document.body.classList.contains('cam')||performance.now()<wake.muteUntil;
+function newWakeRec(){try{wake.rec&&wake.rec.remove()}catch{}const r=new ASR.model.KaldiRecognizer(16000,grammar());try{r.setWords(true)}catch{}
+  r.on('result',e=>onWake(e.result||{}));wake.rec=r;wake.dirty=false}
+async function ensureWake(){
+  if(!wake.wanted||!cfg.wake)return;
+  try{if(!micStream||micStream.getAudioTracks().every(t=>t.readyState==='ended')){micStream=null;stopWake(true);await openMic();
+      micStream.getAudioTracks().forEach(t=>t.addEventListener('ended',()=>{log('микрофон отключился, перезапуск');micStream=null;stopWake(true);setTimeout(ensureWake,1000)}))}}
+  catch(e){log('wake mic:',e.name);setTimeout(ensureWake,3000);return}
+  if(actx&&actx.state!=='running')try{await actx.resume()}catch{}
+  keepAwake();
+  if(ASR.state!=='ready'){if(ASR.state==='none'||ASR.state==='error')loadAsr(true);return} // loadAsr calls ensureWake when ready
+  if(wake.proc)return;
+  const ctx=ac();wake.src=ctx.createMediaStreamSource(micStream);wake.proc=ctx.createScriptProcessor(2048,1,1);newWakeRec();
+  wake.proc.onaudioprocess=e=>{const d=e.inputBuffer.getChannelData(0);let q=0;for(let i=0;i<d.length;i+=4)q+=d[i]*d[i];const v=Math.min(1,Math.sqrt(q/(d.length/4))*4);
+    micLvl+=(v-micLvl)*.3;const now=performance.now();if(v>.06)wake.lastVoice=now;
+    if(wakeBlocked()){wake.dirty=true;micLvl*=.5;return}
+    if(wake.dirty)newWakeRec(); // drop whatever was half-heard while Karen talked
+    try{wake.rec.acceptWaveformFloat(new Float32Array(d),ctx.sampleRate)}catch{}};
+  const mute=ctx.createGain();mute.gain.value=0;wake.src.connect(wake.proc);wake.proc.connect(mute);mute.connect(ctx.destination);
+  document.body.classList.add('wake');log('активация по имени: слушаю');renderWake();
+}
+function stopWake(keepWanted){try{wake.proc&&wake.proc.disconnect();wake.src&&wake.src.disconnect();wake.rec&&wake.rec.remove()}catch{}wake.proc=wake.src=wake.rec=null;micLvl=0;
+  document.body.classList.remove('wake');if(!keepWanted)wake.wanted=false;renderWake()}
+async function keepAwake(){try{if('wakeLock' in navigator&&!wake.lock&&document.visibilityState==='visible'){wake.lock=await navigator.wakeLock.request('screen');wake.lock.addEventListener('release',()=>{wake.lock=null})}}catch(e){log('wakeLock:',e.name)}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&wake.wanted){wake.dirty=true;setTimeout(ensureWake,300)}});
+async function onWake(res){
+  const text=String(res.text||'').trim();if(!text||wakeBlocked())return;
+  if(!KarenCommands.hasName(text)){return} // no name → party noise, ignore
+  const names=KarenCommands.data.name,nw=(res.result||[]).filter(w=>names.some(n=>KarenCommands.norm(w.word).trim().startsWith(n.split(' ')[0])));
+  const conf=nw.length?Math.max(...nw.map(w=>w.conf??1)):1,now=performance.now();
+  if(conf<WAKE_CONF){log('имя неуверенно',conf.toFixed(2),text);return}
+  if(now-wake.last<WAKE_COOLDOWN)return;wake.last=now;wake.count++;wake.dirty=true;
+  const t0=Math.min(now,wake.lastVoice||now);log('wake:',text,'conf',conf.toFixed(2));window.karen._wakeText=text;window.karen._wakeT0=t0;
+  if(KarenCommands.stripName(text).length>=3)return handleText(text,t0); // «Карен, привет» → at once
+  const s=newTurn();await sayLine(KarenCommands.sys('name'),s,t0,{after:false});if(s.aborted)return;busy=null;listen(); // only the name → «Да?» + ear
+}
+function renderWake(){const g=$('#wakeGate');if(g)g.hidden=!(cfg.wake&&!wake.wanted);const t=$('#wakeToggle');if(t)t.checked=cfg.wake}
+$('#wakeGate').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();wake.wanted=true;renderWake();ac();warmDecode();ensureWake()});
+$('#wakeToggle').addEventListener('change',e=>{cfg.wake=e.target.checked;SS('wake',cfg.wake?'1':'0');if(cfg.wake){wake.wanted=true;ac();ensureWake()}else stopWake()});
+renderWake();
 $('#stage').addEventListener('pointerdown',e=>{if(document.body.classList.contains('cam'))return;e.preventDefault();listen()});
 addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&$('#menu').hidden)listen()});
 
@@ -357,7 +405,7 @@ const acts={
   fullscreen:async()=>{try{await document.documentElement.requestFullscreen({navigationUI:'hide'});await screen.orientation?.lock?.('landscape')}catch(e){log('fullscreen:',e.message)}},
   photo:()=>{$('#menu').hidden=true;photoFlow(KarenCommands.line(KarenCommands.intent('фото')),null)},
   send:()=>{const t=$('#debugText').value.trim();if(t){$('#menu').hidden=true;handleText(t,performance.now())}},
-  mictest:async()=>{try{await openMic();const m=$('#micMeter'),end=Date.now()+5000;(function l(){m.value=micAnalyser?rms(micAnalyser):0;if(Date.now()<end)requestAnimationFrame(l);else closeMic()})()}catch(e){log('mic test:',e.name)}},
+  mictest:async()=>{try{await openMic();const m=$('#micMeter'),end=Date.now()+5000;(function l(){m.value=micAnalyser?rms(micAnalyser):0;if(Date.now()<end)requestAnimationFrame(l);else if(!wake.wanted)closeMic()})()}catch(e){log('mic test:',e.name)}},
   health:async()=>{try{const h=await backend().health();log('health:',JSON.stringify(h))}catch(e){log('health failed:',e.message)}},
 };
 $('#menu').addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(a)acts[a.dataset.act]()});

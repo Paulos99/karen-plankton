@@ -40,7 +40,7 @@ body.listen body:not([data-state=idle]) #cam{position:fixed;inset:0;z-index:8;ba
 #cmdList{font-size:13px;opacity:.85}#cmdList p{margin:3px 0}
 #camResult[hidden],#camShare[hidden]{display:none!important}
 #log{display:none}#adv:not([hidden])~#log{display:block}
-#modelPanel{position:fixed;left:50%;bottom:4vh;transform:translateX(-50%);z-index:6;width:min(92vw,620px);background:#0c1c27ee;border:1px solid #beff3144;border-radius:16px;padding:14px 18px;text-align:center;touch-action:auto}
+#modelPanel{position:fixed;left:50%;bottom:4vh;transform:translateX(-50%);z-index:7;width:min(92vw,620px);background:#0c1c27ee;border:1px solid #beff3144;border-radius:16px;padding:14px 18px;text-align:center;touch-action:auto}
 #modelPanel p{margin:4px 0 10px;color:#dfe;font-size:clamp(14px,1.8vw,18px)}#modelPanel .row{justify-content:center}
 #modelPanel button,#menu .mdl-btn,#menu .inst-btn{font:600 16px system-ui;min-height:48px;border-radius:12px;border:1px solid var(--g);background:#13301d;color:#e8ffe0;padding:8px 18px}
 #modelPanel .inst-btn{background:transparent;border-color:#beff3166}
@@ -49,3 +49,8 @@ body.listen body:not([data-state=idle]) #cam{position:fixed;inset:0;z-index:8;ba
 .mdl-bar[hidden],.mdl-btn[hidden],.inst-btn[hidden],.inst-help[hidden],#modelPanel[hidden]{display:none!important}
 body[data-asr=error] #modelPanel{border-color:#ff6b6b88}
 .inst-help{font-size:14px!important;color:#cfe!important}
+
+#wakeGate{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:12vh;gap:.4em;background:rgba(8,20,29,.35);color:#BEFF31;font:500 clamp(18px,2.6vw,30px)/1.3 system-ui,sans-serif;cursor:pointer;animation:gateIn .6s ease}
+#wakeGate small{color:#9fb3a0;font-size:.6em}
+#wakeGate[hidden]{display:none}
+@keyframes gateIn{from{opacity:0}to{opacity:1}}
