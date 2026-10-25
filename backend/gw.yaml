@@ -1,0 +1,13 @@
+openapi: 3.0.0
+info: {title: karen-gw, version: 1.0.0}
+x-yc-apigateway:
+  rateLimit: {allRequests: {rpm: 120}}
+paths:
+  /{proxy+}:
+    x-yc-apigateway-any-method:
+      parameters: [{name: proxy, in: path, required: true, schema: {type: string}}]
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4eu1bd6kisjef0lm9dh
+        tag: $latest
+        service_account_id: ajeneto07bgcv2be2a2e
