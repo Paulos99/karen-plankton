@@ -156,7 +156,9 @@ async function sayLine(l,sig,t0,{after=true}={}){
 async function handleText(text,t0){
   const sig=newTurn();log('фраза:',text);
   if(follow&&Date.now()<follow.until){const f=follow;follow=null;const k=KarenCommands.yesno(text); // answer to Karen's yes/no question
-    if(k){const b=KarenCommands.branch(f.f,k);await sayLine(b,sig,t0);if(busy&&busy.signal===sig)busy=null;return}}
+    const kk=k||(f.f.any?'any':null);
+    if(kk){const b=KarenCommands.branch(f.f,kk);await sayLine(b,sig,t0,{after:!b.follow});if(sig.aborted)return;if(busy&&busy.signal===sig)busy=null;
+      if(b.follow){follow={f:b.follow,until:Date.now()+15000};if(ASR.state==='ready'||(cfg.cloud&&backend().name==='cloud'))return listen();setState('idle')}return}}
   follow=null;
   const it=KarenCommands.intent(text);
   if(it&&it.id==='photo'){busy=null;return photoFlow(KarenCommands.line(it),t0)}
@@ -283,7 +285,7 @@ async function listen(){
     proc.disconnect();src.disconnect();try{r.remove()}catch{}
     const text=String(final||partial).replace(/\[unk\]/g,' ').replace(/\s+/g,' ').trim();
     window.karen._asrMs=Math.round(performance.now()-tEnd);log('офлайн:',text||'(пусто)',window.karen._asrMs+' мс');
-    if(!text){const s=newTurn();await sayLine(KarenCommands.sys('fallback'),s,tSpeech);busy=null;return}
+    if(!text&&!(follow&&follow.f.any)){const s=newTurn();await sayLine(KarenCommands.sys('fallback'),s,tSpeech);busy=null;return}
     return handleText(text,tSpeech);
   }
   if(!rec)return;const {blob,seconds}=rec.stop();rec=null;
@@ -364,7 +366,7 @@ bind('#endpoint','endpoint');bind('#token','token');bind('#cloudToggle','cloud',
 bind('#llmToggle','llm','checked',Boolean);
 $('#endpoint').addEventListener('change',e=>{if(/api-key|iam|token=|[?&]key=/i.test(e.target.value)){e.target.value='';cfg.endpoint='';SS('endpoint','');log('URL с ключом отклонён')}});
 
-const CMD_TITLE={worldplan:'План захвата мира («план захвата мира»)',formula:'Секретная формула («формула», «секретный рецепт»)',reboot:'Фейковая перезагрузка с ошибкой («перезагрузка»)',marketer:'Комплимент-прожарка маркетологам («комплимент маркетологам»)',fortune:'Предсказание («предсказание», «моё будущее»)',quiz:'Викторина да/нет («угадай», «давай поиграем») — затем ответьте «да» или «нет»',jealous:'Сцена ревности («Алиса», «другая нейросеть», «ревнуешь»)',lullaby:'Колыбельная («спой колыбельную», «спокойной ночи»)',photo:'Фото с таймером («сделай фото»)',love:'«Я люблю тебя»',joke:'Шутка',angry:'Грубость («ты глупая»)',proud:'Комплимент Карен («ты умница»)',sad:'Утешение («всё пропало»)',suspicious:'Новый план',annoyed:'«Хватит»',confused:'«Не понял»',error:'«Ошибка», «сломалась»',hello:'Приветствие',bye:'Прощание',thanks:'Спасибо',howareyou:'«Как дела»',whoareyou:'«Кто ты»',whatdoing:'«Что делаешь»',plankton:'Про Шелдона',party:'Праздник, тост'};
+const CMD_TITLE={duel:'Дуэль: кто сегодня главный маркетолог (двое игроков, да/нет)',rateme:'Оцени меня (1–10 с сарказмом)',liedetector:'Детектор лжи («детектор лжи», потом любая фраза)',toast:'Тост ко Дню маркетолога («тост», «поднимем»)',advice:'Анти-мотивация («совет дня», «мотивация», «поддержи меня»)',villain:'Режим злодея («режим злодея», «злой смех»)',slogan:'Слоган для гостя («придумай слоган», «реклама»)',rps:'Камень, ножницы, бумага (потом назовите выбор)',horoscope:'Гороскоп маркетолога («гороскоп»)',dance:'Танец («потанцуй», «танцуй»)',worldplan:'План захвата мира («план захвата мира»)',formula:'Секретная формула («формула», «секретный рецепт»)',reboot:'Фейковая перезагрузка с ошибкой («перезагрузка»)',marketer:'Комплимент-прожарка маркетологам («комплимент маркетологам»)',fortune:'Предсказание («предсказание», «моё будущее»)',quiz:'Викторина да/нет («угадай», «давай поиграем») — затем ответьте «да» или «нет»',jealous:'Сцена ревности («Алиса», «другая нейросеть», «ревнуешь»)',lullaby:'Колыбельная («спой колыбельную», «спокойной ночи»)',photo:'Фото с таймером («сделай фото»)',love:'«Я люблю тебя»',joke:'Шутка',angry:'Грубость («ты глупая»)',proud:'Комплимент Карен («ты умница»)',sad:'Утешение («всё пропало»)',suspicious:'Новый план',annoyed:'«Хватит»',confused:'«Не понял»',error:'«Ошибка», «сломалась»',hello:'Приветствие',bye:'Прощание',thanks:'Спасибо',howareyou:'«Как дела»',whoareyou:'«Кто ты»',whatdoing:'«Что делаешь»',plankton:'Про Планктона',party:'Праздник, тост'};
 KarenCommands.ready.then(()=>{const d=KarenCommands.data;$('#cmdList').innerHTML='<p>Коснитесь экрана и скажите фразу (можно с «Карен, …»).</p>'+d.commands.map(c=>`<p><b>${CMD_TITLE[c.id]||c.id}</b><br><small>${c.phrases.map(p=>p.replace(/\.$/,'')).join(', ')} · ${c.lines.length} вар.</small></p>`).join('')});
 // idle -> sleep after 3 min inactivity
 let lastAct=Date.now();addEventListener('pointerdown',()=>{lastAct=Date.now();if(state==='sleep')setState('idle')});
