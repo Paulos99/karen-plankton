@@ -1,7 +1,5 @@
 openapi: 3.0.0
 info: {title: karen-gw, version: 1.0.0}
-x-yc-apigateway:
-  rateLimit: {allRequests: {rpm: 120}}
 paths:
   /{proxy+}:
     x-yc-apigateway-any-method:
