@@ -59,3 +59,4 @@ body[data-asr=error] #modelPanel{border-color:#ff6b6b88}
 .svglayer{position:absolute;inset:0;pointer-events:none;background:#08141D}.svglayer svg{width:100%;height:100%;display:block}
 #camOverlay{position:absolute;inset:0;pointer-events:none}#camOverlay svg{width:100%;height:100%}
 #danceCanvas{width:100%;height:100%;display:block}
+#volBar{position:fixed;left:50%;bottom:8%;transform:translateX(-50%);z-index:9;display:flex;align-items:center;gap:6px;padding:14px 22px;border:2px solid #BEFF31;border-radius:18px;background:rgba(5,9,12,.85);box-shadow:0 0 18px #BEFF3166;color:#BEFF31;font:700 26px Inter,sans-serif}#volBar i{width:16px;height:34px;border-radius:4px;background:#1d2e14}#volBar i.on{background:#BEFF31;box-shadow:0 0 8px #BEFF31}#volBar b{font-size:30px;margin-right:6px}#volBar span{margin-left:10px;min-width:70px}

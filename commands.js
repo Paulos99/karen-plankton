@@ -10,7 +10,10 @@ function parse(l,emotion,id,follow){const steps=[];let out='';String(l.text).spl
   out=out.replace(/\s+/g,' ').trim();const n=Math.max(1,out.length);
   return {...l,text:out,steps:steps.map(s=>({at:Math.min(.97,s.pos/n),emotion:s.emotion})),emotion,id,follow:(l.follow||follow)?{...(follow||{}),...(l.follow||{})}:null}}
 const lineFiles=ls=>(ls||[]).flatMap(l=>[...(l.segments?l.segments.map(g=>g.file):[l.file]),...Object.values(l.follow||{}).flatMap(b=>lineFiles(b.lines))]);
-function pick(lines,key){if(!lines||!lines.length)return null;let i=Math.floor(Math.random()*lines.length);if(lines.length>1&&i===last[key])i=(i+1)%lines.length;last[key]=i;return lines[i]}
+// shuffle-bag: every variant once before any repeats, never the same twice in a row
+function pick(lines,key){if(!lines||!lines.length)return null;const n=lines.length;let b=last[key];
+  if(!b||!b.bag.length||b.n!==n){const bag=[...Array(n).keys()].sort(()=>Math.random()-.5);if(b&&n>1&&bag[bag.length-1]===b.prev)bag.unshift(bag.pop());b=last[key]={bag,n,prev:b&&b.prev}}
+  const i=b.bag.pop();b.prev=i;return lines[i]}
 const K={
   ready:fetch('commands.json').then(r=>r.json()).then(d=>{DATA=d}).catch(()=>{}),
   norm,

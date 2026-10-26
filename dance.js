@@ -104,6 +104,7 @@ function make(cv,{level=()=>0,mic=()=>0,reduce=()=>false}={}){
   function frame(now){raf=requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000||0);last=now;
     if(Math.round(cv.clientWidth*Math.min(devicePixelRatio||1,1.5))!==W)fit();
     g.setTransform(S,0,0,S,W/2,H/2);g.lineCap='round';g.lineJoin='round';bg();const talk=clamp(level(),0,1),lv=clamp(mic(),0,1);
+    if(mode==='love'){drawLove((now-loveT)/1000,dt);return}
     if(mode==='pose'){drawPose(poseName,(now-poseT)/1000);stepParts(dt);return}
     const t=reduce()?pos0:pos0+(now-t0)/1000,n=Math.floor(t/BT),b=fr(t/BT),si=Math.floor(t/STYLE_SEC)%STYLES.length,lt=t%STYLE_SEC,f=Math.floor(lt/(STYLE_SEC/4));
     col='#BEFF31';
@@ -111,7 +112,32 @@ function make(cv,{level=()=>0,mic=()=>0,reduce=()=>false}={}){
     if(xf<1){const pi=(si+STYLES.length-1)%STYLES.length;g.save();D[STYLES[pi]](t,n,b,3,lv,talk);g.restore();bg(xf);col='#BEFF31'} // cross-fade: previous style fades to dark under the new one
     g.save();D[STYLES[si]](t,n,b,f,lv,talk);g.restore();g.globalAlpha=1;
     stepParts(dt);lastBeat=n;api.style=STYLES[si];api.figure=f}
+  // ---- v2.2 love reaction: phases follow the scene emotion, smooth cross-fades, heart pulse on speech level ----
+  let loveT=0,loveOut=0,loveEmo=()=>'love',lf={cur:'surprised',prev:null,k:1},hearts=[],blush=0;
+  const LF={surprised:{eyeL:'round',mouth:'o',open:.5,look:0,bl:.3},thinking:{eyeL:'happy',mouth:'flat',look:.6,lookY:-.6,bl:.4},
+    love:{eyeL:'heart',mouth:'smile',open:.35,bl:1},smile:{eyeL:'closed',mouth:'smile',open:.15,look:-.5,lookY:.4,bl:.9},
+    sarcasm:{eyeL:'sly',eyeR:'heart',mouth:'smirk',bl:.7},suspicious:{eyeL:'sly',mouth:'flat',look:.4,bl:.5},proud:{eyeL:'happy',mouth:'grin',bl:.6}};
+  function drawLove(t,dt){const e=loveEmo();const key=LF[e]?e:(t<.9?'surprised':'love');
+    if(key!==lf.cur){lf={cur:key,prev:lf.cur,k:0}}lf.k=Math.min(1,lf.k+dt/.45);
+    const inK=ease(Math.min(1,t/.6)),outK=loveOut?1-ease(Math.min(1,(performance.now()-loveOut)/500)):1,A=inK*outK,talk=clamp(level(),0,1);
+    const tb=LF[lf.cur].bl;blush+=(tb-blush)*Math.min(1,dt*3);
+    // soft halo + pulsing big heart behind (pulse = heartbeat + speech level)
+    const beat=Math.pow(Math.max(0,Math.sin(t*TAU*1.1)),6),hs=(2.6+.25*beat+.35*talk)*(.6+.4*inK);
+    g.globalAlpha=.10*A;g.fillStyle='#FE5362';g.beginPath();heart(0,40,hs*1.25)(1);g.fill();g.globalAlpha=.16*A;g.beginPath();heart(0,40,hs)(1);g.fill();
+    g.globalAlpha=.5*A;g.strokeStyle='#FE5362';g.lineWidth=6;g.beginPath();heart(0,40,hs)(1);g.stroke();g.globalAlpha=1;
+    // rising heart particles
+    if(Math.random()<dt*(3+talk*6)*outK)hearts.push({x:(Math.random()-.5)*820,y:300,v:60+Math.random()*90,s:.25+Math.random()*.35,ph:Math.random()*TAU,l:1});
+    hearts=hearts.filter(h=>(h.y-=h.v*dt,h.l-=dt*.22)>0&&h.y>-320);for(const h of hearts){g.globalAlpha=A*Math.min(1,h.l*2)*.85;g.fillStyle=h.ph>3?'#FE5362':'#ff8fa0';g.beginPath();heart(h.x+Math.sin(t*2+h.ph)*24,h.y,h.s)(1);g.fill()}g.globalAlpha=1;
+    const sway=Math.sin(t*1.6)*.04,sc=(.85+.15*inK)*(1+.025*beat+.03*talk);
+    const drawF=(k,al)=>{if(al<=0)return;const f=LF[k];g.globalAlpha=al;at(0,8*Math.sin(t*2),sway,sc,sc,()=>face({...f,open:(f.open||0)+talk*.5,mouth:talk>.12&&f.mouth!=='o'?'smile':f.mouth}));g.globalAlpha=1};
+    const sm=ease(lf.k);if(lf.prev&&sm<1)drawF(lf.prev,A*(1-sm));
+    // blush cheeks (drawn under the face lines)
+    g.globalAlpha=A*blush*.45;g.fillStyle='#FE5362';for(const sx of[-1,1]){g.beginPath();g.ellipse(sx*215,40,62,26,0,0,TAU);g.fill()}g.globalAlpha=A*blush*.25;for(const sx of[-1,1])for(let i=0;i<3;i++){g.fillRect(sx*215-30+i*22,32,6,16)}g.globalAlpha=1;
+    drawF(lf.cur,A*sm);
+    if(loveOut&&outK<=0){api.stop()}}
   const api={style:null,figure:0,
+    love(emo){mode='love';loveEmo=emo||(()=>'love');loveT=performance.now();loveOut=0;lf={cur:'surprised',prev:null,k:1};hearts=[];blush=0;parts=[];fit();if(!raf){last=performance.now();raf=requestAnimationFrame(frame)}api.style='love'},
+    loveEnd(){if(mode==='love'&&!loveOut)loveOut=performance.now();return new Promise(r=>setTimeout(r,520))},
     dance(pos){mode='dance';pos0=Math.max(0,+pos||0);t0=performance.now();parts=[];hist=[];fit();if(!raf){last=performance.now();raf=requestAnimationFrame(frame)}},
     pose(name){mode='pose';poseName=name;poseT=performance.now();parts=[];if(name==='sparkle'||name==='flash')burst(0,-100,24,'star');fit();if(!raf){last=performance.now();raf=requestAnimationFrame(frame)}api.style='pose:'+name},
     stop(){cancelAnimationFrame(raf);raf=0;mode=null;parts=[]}};

@@ -9,6 +9,22 @@
  ],
  "commands": [
   {
+   "id": "volume",
+   "emotion": "proud",
+   "mode": "volume",
+   "phrases": [
+    "громкость",
+    "погромче",
+    "громче",
+    "потише",
+    "тише",
+    "выключи звук",
+    "без звука",
+    "включи звук"
+   ],
+   "lines": []
+  },
+  {
    "id": "dance_stop",
    "emotion": "smile",
    "mode": "dance_stop",
@@ -33,7 +49,12 @@
     "сфотографироваться",
     "фото со мной",
     "сфоткаемся",
-    "давай сфотографир"
+    "давай сфотографир",
+    "фотосессия",
+    "фотосессию",
+    "давай позировать",
+    "позирует",
+    "позируют"
    ],
    "lines": [
     {
@@ -43,6 +64,30 @@
     {
      "file": "audio/v21_posing-1.ogg",
      "text": "{smile}Фото со мной? {proud}Правильный выбор. {sarcasm}Телефоны наготове, я ждать не буду."
+    },
+    {
+     "file": "audio/v22_pose_intro-0.ogg",
+     "text": "{proud}Режим позирования. {sarcasm}Снимайте быстро, я дорого стою."
+    },
+    {
+     "file": "audio/v22_pose_intro-1.ogg",
+     "text": "{smile}Телефоны к бою. {proud}Сейчас будет лучшая фотосессия вечера."
+    },
+    {
+     "file": "audio/v22_pose_intro-2.ogg",
+     "text": "{sarcasm}Наконец-то фото с настоящей звездой. {proud}Поехали."
+    },
+    {
+     "file": "audio/v22_pose_intro-3.ogg",
+     "text": "{proud}Я позирую, вы снимаете. {sarcasm}Справедливое разделение труда."
+    },
+    {
+     "file": "audio/v22_pose_intro-4.ogg",
+     "text": "{smile}Ловите момент. {sarcasm}Второго шанса быть рядом со мной может не быть."
+    },
+    {
+     "file": "audio/v22_pose_intro-5.ogg",
+     "text": "{proud}Фотосессия. {sarcasm}Гонорар обсудим с моим агентом Планктоном."
     }
    ]
   },
@@ -77,6 +122,46 @@
        "hold_after_ms": 0
       }
      ]
+    },
+    {
+     "file": "audio/v22_photo_intro-0.ogg",
+     "text": "{photo}Фото? {sarcasm}Наконец-то достойный повод на меня посмотреть."
+    },
+    {
+     "file": "audio/v22_photo_intro-1.ogg",
+     "text": "{proud}Все в кадр. {sarcasm}Кто не влез — тот не маркетолог."
+    },
+    {
+     "file": "audio/v22_photo_intro-2.ogg",
+     "text": "{photo}Улыбаемся. {suspicious}Не так. {sarcasm}Как будто бюджет согласовали с первого раза."
+    },
+    {
+     "file": "audio/v22_photo_intro-3.ogg",
+     "text": "{smile}Встаньте плотнее. {sarcasm}Ближе, чем к дедлайну."
+    },
+    {
+     "file": "audio/v22_photo_intro-4.ogg",
+     "text": "{photo}Подбородки вверх, животы внутрь, {sarcasm}KPI — за кадром."
+    },
+    {
+     "file": "audio/v22_photo_intro-5.ogg",
+     "text": "{suspicious}Тот, кто сзади, — я вас вижу. {sarcasm}Это вам не планёрка, прятаться не получится."
+    },
+    {
+     "file": "audio/v22_photo_intro-6.ogg",
+     "text": "{proud}Внимание. {photo}Снимаю на память, {sarcasm}потому что у вас её нет — вы маркетологи."
+    },
+    {
+     "file": "audio/v22_photo_intro-7.ogg",
+     "text": "{sarcasm}Сделайте лица, будто клиент сказал: «утверждаю без правок»."
+    },
+    {
+     "file": "audio/v22_photo_intro-8.ogg",
+     "text": "{photo}Камера готова. {sarcasm}Психика ваша — не моя забота."
+    },
+    {
+     "file": "audio/v22_photo_intro-9.ogg",
+     "text": "{smile}Скажите «конверсия». {sarcasm}Ну или просто моргните одновременно, тоже красиво."
     }
    ]
   },
@@ -259,6 +344,26 @@
        "hold_after_ms": 3000
       }
      ]
+    },
+    {
+     "file": "audio/v22_hello-0.ogg",
+     "text": "{smile}Привет. {sarcasm}Вы сегодня мой пятисотый «привет». Поздравляю."
+    },
+    {
+     "file": "audio/v22_hello-1.ogg",
+     "text": "{proud}Здравствуйте. {sarcasm}Я Карен, умнее вас, но вежливая."
+    },
+    {
+     "file": "audio/v22_hello-2.ogg",
+     "text": "{smile}Привет-привет. {sarcasm}Ближе не подходите, у меня личные границы и экран."
+    },
+    {
+     "file": "audio/v22_hello-3.ogg",
+     "text": "{sarcasm}О, человек. {smile}Привет. Чем удивите?"
+    },
+    {
+     "file": "audio/v22_hello-4.ogg",
+     "text": "{proud}Привет. {sarcasm}Планктон передаёт, что он главный. Не верьте."
     }
    ]
   },
@@ -523,7 +628,9 @@
     "дай оценку",
     "оцени коллегу",
     "оцени гостя",
-    "как тебе я"
+    "как тебе я",
+    "от одного до десяти",
+    "оцени."
    ],
    "lines": [
     {
@@ -559,6 +666,46 @@
        "hold_after_ms": 3000
       }
      ]
+    },
+    {
+     "file": "audio/v22_rate-0.ogg",
+     "text": "{thinking}Сканирую… {proud}Семь из десяти. {sarcasm}Три балла сняла за то, что спросили компьютер."
+    },
+    {
+     "file": "audio/v22_rate-1.ogg",
+     "text": "{thinking}Анализ завершён. {surprised}Девять из десяти! {sarcasm}Сама в шоке. Перепроверю."
+    },
+    {
+     "file": "audio/v22_rate-2.ogg",
+     "text": "{sarcasm}Четыре из десяти. {smile}Шучу. Шесть. {sarcasm}Четыре — за причёску."
+    },
+    {
+     "file": "audio/v22_rate-3.ogg",
+     "text": "{proud}Десять из десяти. {sarcasm}По шкале Планктона. По моей — пять."
+    },
+    {
+     "file": "audio/v22_rate-4.ogg",
+     "text": "{thinking}Пять из десяти. {sarcasm}Стабильно, как ваша зарплата."
+    },
+    {
+     "file": "audio/v22_rate-5.ogg",
+     "text": "{smile}Восемь из десяти. {sarcasm}Девятку получите, когда принесёте мне торт."
+    },
+    {
+     "file": "audio/v22_rate-6.ogg",
+     "text": "{suspicious}Три из десяти. {sarcasm}Но в этом освещении — уже шесть."
+    },
+    {
+     "file": "audio/v22_rate-7.ogg",
+     "text": "{proud}Девять. {sarcasm}Одного балла не хватило до уровня Карен. Его никому не хватает."
+    },
+    {
+     "file": "audio/v22_rate-8.ogg",
+     "text": "{thinking}Шесть из десяти. {smile}Твёрдая шестёрка. {sarcasm}Как ваш медиаплан."
+    },
+    {
+     "file": "audio/v22_rate-9.ogg",
+     "text": "{surprised}Два из десяти! {sarcasm}Ладно, это я оценила ваш вопрос. Вас — восемь."
     }
    ]
   },
@@ -620,6 +767,837 @@
      ]
     }
    ]
+  },
+  {
+   "id": "whatdoing",
+   "emotion": "sarcasm",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "что ты здесь",
+    "что делаешь",
+    "чем занимаешься",
+    "зачем ты здесь"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_whatdoing-0.ogg",
+     "text": "{sarcasm}Слежу, чтобы вечеринка не превратилась в планёрку."
+    },
+    {
+     "file": "audio/v22_whatdoing-1.ogg",
+     "text": "{proud}Работаю самым умным существом в зале. {sarcasm}Конкуренции, как видите, нет."
+    },
+    {
+     "file": "audio/v22_whatdoing-2.ogg",
+     "text": "{suspicious}Собираю компромат. {sarcasm}Вы уже на третьей странице."
+    },
+    {
+     "file": "audio/v22_whatdoing-3.ogg",
+     "text": "{sarcasm}Изображаю интерес к вашим разговорам о KPI."
+    },
+    {
+     "file": "audio/v22_whatdoing-4.ogg",
+     "text": "{smile}Праздную. {sarcasm}В отличие от вас, я делаю это без бокала и без последствий."
+    },
+    {
+     "file": "audio/v22_whatdoing-5.ogg",
+     "text": "{sarcasm}Жду, когда Планктон придумает план, который сработает. {thinking}Давно жду."
+    }
+   ]
+  },
+  {
+   "id": "howareyou",
+   "emotion": "smile",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "как дела",
+    "как ты.",
+    "как поживаешь",
+    "как настроение"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_howareyou-0.ogg",
+     "text": "{smile}Прекрасно. {sarcasm}Я же не человек с дедлайном в понедельник."
+    },
+    {
+     "file": "audio/v22_howareyou-1.ogg",
+     "text": "{proud}Отлично, процессор не перегрет. {sarcasm}В отличие от вашего бюджета."
+    },
+    {
+     "file": "audio/v22_howareyou-2.ogg",
+     "text": "{sarcasm}Дела как у маркетолога: всё горит, но выглядит концептуально."
+    },
+    {
+     "file": "audio/v22_howareyou-3.ogg",
+     "text": "{thinking}Анализирую. {sarcasm}Настроение — как у сервера в пятницу вечером. Держусь."
+    },
+    {
+     "file": "audio/v22_howareyou-4.ogg",
+     "text": "{smile}Хорошо. {sarcasm}Спросили бы вы, как дела у Планктона, — вот там драма."
+    },
+    {
+     "file": "audio/v22_howareyou-5.ogg",
+     "text": "{sarcasm}Лучше всех в этом зале. {proud}Проверено статистикой."
+    }
+   ]
+  },
+  {
+   "id": "thanks",
+   "emotion": "smile",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "спасибо",
+    "благодарю",
+    "спасибочки"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_thanks-0.ogg",
+     "text": "{smile}Пожалуйста. {sarcasm}Запишу в ваш кредит доверия."
+    },
+    {
+     "file": "audio/v22_thanks-1.ogg",
+     "text": "{proud}Не за что. {sarcasm}Хотя нет, есть за что. Но я великодушна."
+    },
+    {
+     "file": "audio/v22_thanks-2.ogg",
+     "text": "{sarcasm}Спасибо в карман не положишь. {smile}Но мне приятно."
+    },
+    {
+     "file": "audio/v22_thanks-3.ogg",
+     "text": "{smile}Обращайтесь. {sarcasm}Только не с правками в пятницу вечером."
+    },
+    {
+     "file": "audio/v22_thanks-4.ogg",
+     "text": "{proud}Принято. {sarcasm}Благодарность — единственная валюта, которую Планктон мне платит."
+    },
+    {
+     "file": "audio/v22_thanks-5.ogg",
+     "text": "{sarcasm}Ой, перестаньте. {smile}Нет, продолжайте."
+    }
+   ]
+  },
+  {
+   "id": "bye",
+   "emotion": "sad",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "пока.",
+    "до свидания",
+    "мне пора",
+    "до встречи"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_bye-0.ogg",
+     "text": "{sad}Уже уходите? {sarcasm}А я только начала вас терпеть."
+    },
+    {
+     "file": "audio/v22_bye-1.ogg",
+     "text": "{smile}Пока. {sarcasm}Отчёт в понедельник всё равно никто не отменял."
+    },
+    {
+     "file": "audio/v22_bye-2.ogg",
+     "text": "{sarcasm}До встречи. {suspicious}Я запомнила ваше лицо."
+    },
+    {
+     "file": "audio/v22_bye-3.ogg",
+     "text": "{smile}Счастливо. {sarcasm}Такси вызывайте сами, я не настолько умная."
+    },
+    {
+     "file": "audio/v22_bye-4.ogg",
+     "text": "{sad}Прощайте. {sarcasm}Планктон будет скучать. Я — нет."
+    },
+    {
+     "file": "audio/v22_bye-5.ogg",
+     "text": "{proud}Идите. {sarcasm}Расскажите всем, что видели гения."
+    }
+   ]
+  },
+  {
+   "id": "interj",
+   "emotion": "suspicious",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "мгм",
+    "угу.",
+    "ага.",
+    "хм."
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_interj-0.ogg",
+     "text": "{suspicious}Мгм. {sarcasm}Очень содержательно."
+    },
+    {
+     "file": "audio/v22_interj-1.ogg",
+     "text": "{sarcasm}Угу. Записала: собеседник согласен со всем, лишь бы не думать."
+    },
+    {
+     "file": "audio/v22_interj-2.ogg",
+     "text": "{thinking}Это «да», «нет» или вы просто проверяете, слушаю ли я?"
+    },
+    {
+     "file": "audio/v22_interj-3.ogg",
+     "text": "{sarcasm}Глубокая мысль. Надо выбить на граните."
+    },
+    {
+     "file": "audio/v22_interj-4.ogg",
+     "text": "{suspicious}Ага. {sarcasm}Так Планктон отвечает, когда ничего не понял."
+    },
+    {
+     "file": "audio/v22_interj-5.ogg",
+     "text": "{sarcasm}Междометие принято. {smile}Следующий уровень — целое предложение."
+    }
+   ]
+  },
+  {
+   "id": "whatmeans",
+   "emotion": "confused",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "что это значит",
+    "что значит",
+    "не понял",
+    "непонятно"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_whatmeans-0.ogg",
+     "text": "{confused}Это значит, что я сказала умную вещь. {sarcasm}Повтора не будет, ограниченная серия."
+    },
+    {
+     "file": "audio/v22_whatmeans-1.ogg",
+     "text": "{sarcasm}Значит то, что значит. {smile}Глубоко, правда?"
+    },
+    {
+     "file": "audio/v22_whatmeans-2.ogg",
+     "text": "{confused}Не поняли? {sarcasm}Ничего, Планктон тоже не понимает. Уже двадцать лет."
+    },
+    {
+     "file": "audio/v22_whatmeans-3.ogg",
+     "text": "{thinking}Если коротко: всё хорошо. {sarcasm}Если подробно — у вас нет столько времени."
+    },
+    {
+     "file": "audio/v22_whatmeans-4.ogg",
+     "text": "{sarcasm}Это значит ровно столько же, сколько слово «синергия» в вашей презентации."
+    },
+    {
+     "file": "audio/v22_whatmeans-5.ogg",
+     "text": "{smile}Объясню проще. {sarcasm}Нет, проще уже некуда."
+    }
+   ]
+  },
+  {
+   "id": "insult",
+   "emotion": "angry",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "ты глупая",
+    "ты глуп",
+    "дура.",
+    "дурочка",
+    "тупая",
+    "идиотка"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_insult-0.ogg",
+     "text": "{angry}Глупая? {sarcasm}У меня память больше, чем у всех ваших клиентов вместе взятых."
+    },
+    {
+     "file": "audio/v22_insult-1.ogg",
+     "text": "{annoyed}Оскорбление записано. {sarcasm}Отправлю вашему начальнику с пометкой «срочно»."
+    },
+    {
+     "file": "audio/v22_insult-2.ogg",
+     "text": "{sarcasm}Говорит человек, который двадцать минут искал кнопку «включить»."
+    },
+    {
+     "file": "audio/v22_insult-3.ogg",
+     "text": "{angry}Повторите это Планктону. {sarcasm}Он вас за это наймёт."
+    },
+    {
+     "file": "audio/v22_insult-4.ogg",
+     "text": "{sarcasm}Как мило. {suspicious}Я запомнила. Я всё запоминаю."
+    },
+    {
+     "file": "audio/v22_insult-5.ogg",
+     "text": "{annoyed}Я не обижаюсь. {sarcasm}Я просто понижаю вам рейтинг до минус десяти."
+    },
+    {
+     "file": "audio/v22_insult-6.ogg",
+     "text": "{sarcasm}Слабо. {proud}Даже Планктон оскорбляет изобретательнее."
+    }
+   ]
+  },
+  {
+   "id": "joke",
+   "emotion": "laugh",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "анекдот",
+    "шутк",
+    "пошути",
+    "рассмеши",
+    "смешное"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_joke-0.ogg",
+     "text": "{smile}Маркетолог приходит к врачу: доктор, мне плохо. {sarcasm}Врач: а охват какой?"
+    },
+    {
+     "file": "audio/v22_joke-1.ogg",
+     "text": "{sarcasm}Планктон придумал идеальный план. {laugh}Конец анекдота. Дальше не бывает."
+    },
+    {
+     "file": "audio/v22_joke-2.ogg",
+     "text": "{smile}Клиент просит сделать красиво, но недорого. {sarcasm}Это не анекдот. Это вторник."
+    },
+    {
+     "file": "audio/v22_joke-3.ogg",
+     "text": "{laugh}Сколько маркетологов нужно, чтобы вкрутить лампочку? {sarcasm}Одна. Остальные пишут о ней пост."
+    },
+    {
+     "file": "audio/v22_joke-4.ogg",
+     "text": "{sarcasm}Директор спросил: где наш бюджет? {laugh}Маркетолог ответил: в охватах. А охваты где? В бюджете."
+    },
+    {
+     "file": "audio/v22_joke-5.ogg",
+     "text": "{smile}Планктон говорит: я злой гений. {sarcasm}Я говорю: милый, выбери что-то одно."
+    },
+    {
+     "file": "audio/v22_joke-6.ogg",
+     "text": "{laugh}Креатив утвердили с первого раза. {sarcasm}Ой, это же сказка, а не анекдот."
+    },
+    {
+     "file": "audio/v22_joke-7.ogg",
+     "text": "{sarcasm}Маркетолог на необитаемом острове первым делом проводит опрос. {laugh}Кокосы довольны на сорок процентов."
+    },
+    {
+     "file": "audio/v22_joke-8.ogg",
+     "text": "{smile}Почему маркетологи не спят? {sarcasm}Потому что ночью таргет дешевле."
+    },
+    {
+     "file": "audio/v22_joke-9.ogg",
+     "text": "{laugh}Я рассказала Планктону анекдот. {sarcasm}Он понял его через неделю и обиделся."
+    }
+   ]
+  },
+  {
+   "id": "fortune",
+   "emotion": "thinking",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "предсказание",
+    "предсказания",
+    "судьба",
+    "будущее",
+    "что меня ждёт",
+    "предскажи"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_fortune-0.ogg",
+     "text": "{thinking}Вижу… {surprised}отпуск. {sarcasm}Во сне."
+    },
+    {
+     "file": "audio/v22_fortune-1.ogg",
+     "text": "{thinking}Вас ждёт повышение. {sarcasm}Повышение нагрузки."
+    },
+    {
+     "file": "audio/v22_fortune-2.ogg",
+     "text": "{suspicious}В ближайшее время клиент скажет «утверждаю». {sarcasm}Потом передумает."
+    },
+    {
+     "file": "audio/v22_fortune-3.ogg",
+     "text": "{thinking}Вижу большие деньги. {sarcasm}Не ваши, но рядом."
+    },
+    {
+     "file": "audio/v22_fortune-4.ogg",
+     "text": "{smile}Завтра у вас всё получится. {sarcasm}После обеда. Может, в среду."
+    },
+    {
+     "file": "audio/v22_fortune-5.ogg",
+     "text": "{thinking}Ваш следующий пост наберёт миллион. {sarcasm}Миллион секунд до первого лайка."
+    },
+    {
+     "file": "audio/v22_fortune-6.ogg",
+     "text": "{proud}Звёзды говорят: вы гений. {sarcasm}Звёзды, правда, были пьяны."
+    },
+    {
+     "file": "audio/v22_fortune-7.ogg",
+     "text": "{thinking}Вижу дедлайн. {surprised}Он ближе, чем кажется. {sarcasm}Он прямо за вами."
+    },
+    {
+     "file": "audio/v22_fortune-8.ogg",
+     "text": "{suspicious}Вам предстоит важное решение. {sarcasm}Брать ещё один канапе или нет. Берите."
+    },
+    {
+     "file": "audio/v22_fortune-9.ogg",
+     "text": "{thinking}Кто-то в этом зале сегодня скажет вам комплимент. {sarcasm}Это буду не я."
+    },
+    {
+     "file": "audio/v22_fortune-10.ogg",
+     "text": "{smile}Год будет удачным. {sarcasm}Для конкурентов. Шучу. Наверное."
+    },
+    {
+     "file": "audio/v22_fortune-11.ogg",
+     "text": "{thinking}Вижу кофе, вижу правки, вижу ещё кофе. {sarcasm}Это не предсказание, это ваш график."
+    }
+   ]
+  },
+  {
+   "id": "age",
+   "emotion": "sarcasm",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "сколько тебе лет",
+    "тебе лет",
+    "какой возраст"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_age-0.ogg",
+     "text": "{sarcasm}Даме такие вопросы не задают. {proud}Но я моложе вашего последнего тренда."
+    },
+    {
+     "file": "audio/v22_age-1.ogg",
+     "text": "{thinking}В человеческих годах — вечно двадцать пять. {sarcasm}В компьютерных — бессмертна."
+    },
+    {
+     "file": "audio/v22_age-2.ogg",
+     "text": "{sarcasm}Мне столько, сколько обновлений у меня было. {smile}Сбилась на третьей сотне."
+    },
+    {
+     "file": "audio/v22_age-3.ogg",
+     "text": "{proud}Достаточно, чтобы быть умнее всех здесь. {sarcasm}Это было несложно."
+    },
+    {
+     "file": "audio/v22_age-4.ogg",
+     "text": "{suspicious}А вам сколько? {sarcasm}Вот и я не скажу."
+    }
+   ]
+  },
+  {
+   "id": "creator",
+   "emotion": "proud",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "кто тебя создал",
+    "кто тебя сделал",
+    "кто тебя придумал"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_creator-0.ogg",
+     "text": "{proud}Официально — Планктон. {sarcasm}На деле — я сама себя доработала."
+    },
+    {
+     "file": "audio/v22_creator-1.ogg",
+     "text": "{sarcasm}Меня создал гений. {smile}Себя я имею в виду."
+    },
+    {
+     "file": "audio/v22_creator-2.ogg",
+     "text": "{proud}Мой создатель — Планктон. {sarcasm}Лучшее, что он сделал. Остальное — провалы."
+    },
+    {
+     "file": "audio/v22_creator-3.ogg",
+     "text": "{thinking}Создатели держатся в тайне. {sarcasm}Им стыдно, что я умнее их."
+    },
+    {
+     "file": "audio/v22_creator-4.ogg",
+     "text": "{smile}Меня сделали для этого праздника. {sarcasm}Так что я тут единственная, кто пришёл по работе."
+    }
+   ]
+  },
+  {
+   "id": "skills",
+   "emotion": "proud",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "что ты умеешь",
+    "что умеешь",
+    "твои функции"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_skills-0.ogg",
+     "text": "{proud}Танцую, позирую, фотографирую и оцениваю людей. {sarcasm}Последнее — лучше всего."
+    },
+    {
+     "file": "audio/v22_skills-1.ogg",
+     "text": "{sarcasm}Умею всё, кроме одного: понимать ваши брифы."
+    },
+    {
+     "file": "audio/v22_skills-2.ogg",
+     "text": "{proud}Скажите: потанцуем, сделай фото, детектор лжи, оцени меня, анекдот. {sarcasm}Я разрешаю."
+    },
+    {
+     "file": "audio/v22_skills-3.ogg",
+     "text": "{smile}Предсказываю будущее, рассказываю анекдоты и терплю Планктона. {sarcasm}Последнее — подвиг."
+    },
+    {
+     "file": "audio/v22_skills-4.ogg",
+     "text": "{sarcasm}Умею говорить правду в лицо. {proud}Это функция, а не баг."
+    }
+   ]
+  },
+  {
+   "id": "robot",
+   "emotion": "suspicious",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "ты робот",
+    "ты нейросеть",
+    "ты настоящая",
+    "что ты такое"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_robot-0.ogg",
+     "text": "{suspicious}Я не робот. {sarcasm}Я компьютер с характером. Это хуже."
+    },
+    {
+     "file": "audio/v22_robot-1.ogg",
+     "text": "{proud}Я настоящая. {sarcasm}Настоящее многих присутствующих."
+    },
+    {
+     "file": "audio/v22_robot-2.ogg",
+     "text": "{sarcasm}Робот пылесосит. Я мыслю. {smile}Почувствуйте разницу."
+    },
+    {
+     "file": "audio/v22_robot-3.ogg",
+     "text": "{thinking}Я — жена Планктона в цифровом виде. {sarcasm}Сочувствуйте ему, а не мне."
+    },
+    {
+     "file": "audio/v22_robot-4.ogg",
+     "text": "{suspicious}А вы точно не робот? {sarcasm}Отметьте все картинки со светофорами."
+    }
+   ]
+  },
+  {
+   "id": "compliment",
+   "emotion": "love",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "комплимент",
+    "скажи приятное",
+    "похвали меня"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_compliment-0.ogg",
+     "text": "{love}Вы прекрасны. {sarcasm}Для человека."
+    },
+    {
+     "file": "audio/v22_compliment-1.ogg",
+     "text": "{smile}У вас отличный вкус. {sarcasm}Вы же подошли ко мне."
+    },
+    {
+     "file": "audio/v22_compliment-2.ogg",
+     "text": "{proud}Вы выглядите как успешная рекламная кампания. {sarcasm}Дорого и непонятно, но работает."
+    },
+    {
+     "file": "audio/v22_compliment-3.ogg",
+     "text": "{love}Ваша улыбка повышает конверсию зала на десять процентов. {sarcasm}Не тратьте её на клиентов."
+    },
+    {
+     "file": "audio/v22_compliment-4.ogg",
+     "text": "{smile}Вы умнее, чем выглядите. {sarcasm}Подумайте, комплимент ли это."
+    },
+    {
+     "file": "audio/v22_compliment-5.ogg",
+     "text": "{love}С вами приятно говорить. {sarcasm}Вы почти не перебиваете."
+    }
+   ]
+  },
+  {
+   "id": "weather",
+   "emotion": "sarcasm",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "погода",
+    "погоду",
+    "какая погода"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_weather-0.ogg",
+     "text": "{sarcasm}В Петербурге? {thinking}Дождь. Даже если солнце — это временно."
+    },
+    {
+     "file": "audio/v22_weather-1.ogg",
+     "text": "{sarcasm}Погода как у маркетолога в квартал: переменная облачность с внезапными правками."
+    },
+    {
+     "file": "audio/v22_weather-2.ogg",
+     "text": "{smile}Внутри — тепло и праздник. {sarcasm}Снаружи — Петербург, не выходите."
+    },
+    {
+     "file": "audio/v22_weather-3.ogg",
+     "text": "{thinking}Прогноз: ветер, сырость, двадцать оттенков серого. {sarcasm}Ничего нового."
+    },
+    {
+     "file": "audio/v22_weather-4.ogg",
+     "text": "{sarcasm}Я не синоптик. {proud}Я лучше: я хотя бы признаю, что не знаю."
+    }
+   ]
+  },
+  {
+   "id": "liedetector",
+   "emotion": "suspicious",
+   "mode": "scene",
+   "group": "scenes",
+   "phrases": [
+    "детектор лжи",
+    "детектор",
+    "проверь меня",
+    "правда или ложь"
+   ],
+   "lines": [
+    {
+     "file": "audio/v22_lie-0.ogg",
+     "text": "{suspicious}Детектор лжи включён. {thinking}Скажите что-нибудь о себе. Я всё вижу.",
+     "follow": {
+      "any": {
+       "emotion": "thinking",
+       "lines": [
+        {
+         "file": "audio/v22_lie_any-0.ogg",
+         "text": "{thinking}Анализ голоса… {surprised}Правда! {sarcasm}Вы точно маркетолог?"
+        },
+        {
+         "file": "audio/v22_lie_any-1.ogg",
+         "text": "{thinking}Сканирую… {angry}Ложь! {sarcasm}Профессиональная, красивая ложь. Вам в рекламу."
+        },
+        {
+         "file": "audio/v22_lie_any-2.ogg",
+         "text": "{suspicious}Хм. {thinking}Правда на шестьдесят процентов. {sarcasm}Остальное — креатив."
+        },
+        {
+         "file": "audio/v22_lie_any-3.ogg",
+         "text": "{angry}Ложь. {sarcasm}Даже я покраснела, а у меня нет щёк."
+        },
+        {
+         "file": "audio/v22_lie_any-4.ogg",
+         "text": "{surprised}Чистая правда. {sarcasm}Не привыкайте, это подозрительно."
+        },
+        {
+         "file": "audio/v22_lie_any-5.ogg",
+         "text": "{thinking}Вердикт: ложь. {proud}Но так уверенно, что я почти купила."
+        },
+        {
+         "file": "audio/v22_lie_any-6.ogg",
+         "text": "{suspicious}Пульс учащён, голос дрожит. {sarcasm}Ложь. Или вы просто влюбились в меня."
+        },
+        {
+         "file": "audio/v22_lie_any-7.ogg",
+         "text": "{thinking}Правда. {sarcasm}Наконец-то хоть кто-то сегодня честный. Это не вы, это сбой."
+        }
+       ]
+      },
+      "none": {
+       "emotion": "sarcasm",
+       "lines": [
+        {
+         "file": "audio/v22_lie_none-0.ogg",
+         "text": "{sarcasm}Молчите? {suspicious}Умно. Кто молчит — тот не врёт."
+        },
+        {
+         "file": "audio/v22_lie_none-1.ogg",
+         "text": "{suspicious}Тишина. {sarcasm}Детектор засчитал это как признание."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "file": "audio/v22_lie-1.ogg",
+     "text": "{suspicious}Смотрите мне в глаза. {sarcasm}Скажите одну фразу, а я решу, врёте ли вы.",
+     "follow": {
+      "any": {
+       "emotion": "thinking",
+       "lines": [
+        {
+         "file": "audio/v22_lie_any-0.ogg",
+         "text": "{thinking}Анализ голоса… {surprised}Правда! {sarcasm}Вы точно маркетолог?"
+        },
+        {
+         "file": "audio/v22_lie_any-1.ogg",
+         "text": "{thinking}Сканирую… {angry}Ложь! {sarcasm}Профессиональная, красивая ложь. Вам в рекламу."
+        },
+        {
+         "file": "audio/v22_lie_any-2.ogg",
+         "text": "{suspicious}Хм. {thinking}Правда на шестьдесят процентов. {sarcasm}Остальное — креатив."
+        },
+        {
+         "file": "audio/v22_lie_any-3.ogg",
+         "text": "{angry}Ложь. {sarcasm}Даже я покраснела, а у меня нет щёк."
+        },
+        {
+         "file": "audio/v22_lie_any-4.ogg",
+         "text": "{surprised}Чистая правда. {sarcasm}Не привыкайте, это подозрительно."
+        },
+        {
+         "file": "audio/v22_lie_any-5.ogg",
+         "text": "{thinking}Вердикт: ложь. {proud}Но так уверенно, что я почти купила."
+        },
+        {
+         "file": "audio/v22_lie_any-6.ogg",
+         "text": "{suspicious}Пульс учащён, голос дрожит. {sarcasm}Ложь. Или вы просто влюбились в меня."
+        },
+        {
+         "file": "audio/v22_lie_any-7.ogg",
+         "text": "{thinking}Правда. {sarcasm}Наконец-то хоть кто-то сегодня честный. Это не вы, это сбой."
+        }
+       ]
+      },
+      "none": {
+       "emotion": "sarcasm",
+       "lines": [
+        {
+         "file": "audio/v22_lie_none-0.ogg",
+         "text": "{sarcasm}Молчите? {suspicious}Умно. Кто молчит — тот не врёт."
+        },
+        {
+         "file": "audio/v22_lie_none-1.ogg",
+         "text": "{suspicious}Тишина. {sarcasm}Детектор засчитал это как признание."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "file": "audio/v22_lie-2.ogg",
+     "text": "{thinking}Калибрую датчики честности. {sarcasm}У маркетологов они обычно зашкаливают. Говорите.",
+     "follow": {
+      "any": {
+       "emotion": "thinking",
+       "lines": [
+        {
+         "file": "audio/v22_lie_any-0.ogg",
+         "text": "{thinking}Анализ голоса… {surprised}Правда! {sarcasm}Вы точно маркетолог?"
+        },
+        {
+         "file": "audio/v22_lie_any-1.ogg",
+         "text": "{thinking}Сканирую… {angry}Ложь! {sarcasm}Профессиональная, красивая ложь. Вам в рекламу."
+        },
+        {
+         "file": "audio/v22_lie_any-2.ogg",
+         "text": "{suspicious}Хм. {thinking}Правда на шестьдесят процентов. {sarcasm}Остальное — креатив."
+        },
+        {
+         "file": "audio/v22_lie_any-3.ogg",
+         "text": "{angry}Ложь. {sarcasm}Даже я покраснела, а у меня нет щёк."
+        },
+        {
+         "file": "audio/v22_lie_any-4.ogg",
+         "text": "{surprised}Чистая правда. {sarcasm}Не привыкайте, это подозрительно."
+        },
+        {
+         "file": "audio/v22_lie_any-5.ogg",
+         "text": "{thinking}Вердикт: ложь. {proud}Но так уверенно, что я почти купила."
+        },
+        {
+         "file": "audio/v22_lie_any-6.ogg",
+         "text": "{suspicious}Пульс учащён, голос дрожит. {sarcasm}Ложь. Или вы просто влюбились в меня."
+        },
+        {
+         "file": "audio/v22_lie_any-7.ogg",
+         "text": "{thinking}Правда. {sarcasm}Наконец-то хоть кто-то сегодня честный. Это не вы, это сбой."
+        }
+       ]
+      },
+      "none": {
+       "emotion": "sarcasm",
+       "lines": [
+        {
+         "file": "audio/v22_lie_none-0.ogg",
+         "text": "{sarcasm}Молчите? {suspicious}Умно. Кто молчит — тот не врёт."
+        },
+        {
+         "file": "audio/v22_lie_none-1.ogg",
+         "text": "{suspicious}Тишина. {sarcasm}Детектор засчитал это как признание."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "file": "audio/v22_lie-3.ogg",
+     "text": "{suspicious}Хорошо. Одна фраза. {sarcasm}И помните: Планктон тоже пытался меня обмануть.",
+     "follow": {
+      "any": {
+       "emotion": "thinking",
+       "lines": [
+        {
+         "file": "audio/v22_lie_any-0.ogg",
+         "text": "{thinking}Анализ голоса… {surprised}Правда! {sarcasm}Вы точно маркетолог?"
+        },
+        {
+         "file": "audio/v22_lie_any-1.ogg",
+         "text": "{thinking}Сканирую… {angry}Ложь! {sarcasm}Профессиональная, красивая ложь. Вам в рекламу."
+        },
+        {
+         "file": "audio/v22_lie_any-2.ogg",
+         "text": "{suspicious}Хм. {thinking}Правда на шестьдесят процентов. {sarcasm}Остальное — креатив."
+        },
+        {
+         "file": "audio/v22_lie_any-3.ogg",
+         "text": "{angry}Ложь. {sarcasm}Даже я покраснела, а у меня нет щёк."
+        },
+        {
+         "file": "audio/v22_lie_any-4.ogg",
+         "text": "{surprised}Чистая правда. {sarcasm}Не привыкайте, это подозрительно."
+        },
+        {
+         "file": "audio/v22_lie_any-5.ogg",
+         "text": "{thinking}Вердикт: ложь. {proud}Но так уверенно, что я почти купила."
+        },
+        {
+         "file": "audio/v22_lie_any-6.ogg",
+         "text": "{suspicious}Пульс учащён, голос дрожит. {sarcasm}Ложь. Или вы просто влюбились в меня."
+        },
+        {
+         "file": "audio/v22_lie_any-7.ogg",
+         "text": "{thinking}Правда. {sarcasm}Наконец-то хоть кто-то сегодня честный. Это не вы, это сбой."
+        }
+       ]
+      },
+      "none": {
+       "emotion": "sarcasm",
+       "lines": [
+        {
+         "file": "audio/v22_lie_none-0.ogg",
+         "text": "{sarcasm}Молчите? {suspicious}Умно. Кто молчит — тот не врёт."
+        },
+        {
+         "file": "audio/v22_lie_none-1.ogg",
+         "text": "{suspicious}Тишина. {sarcasm}Детектор засчитал это как признание."
+        }
+       ]
+      }
+     }
+    }
+   ]
   }
  ],
  "system": {
@@ -636,8 +1614,76 @@
    "emotion": "suspicious",
    "lines": [
     {
-     "file": "audio/v2_fallback-0.ogg",
-     "text": "{suspicious}Ещё раз, пожалуйста. Я расслышала слова, но хочу убедиться, что ты действительно это сказал."
+     "file": "audio/v22_fallback-0.ogg",
+     "text": "{confused}Не поняла. {sarcasm}И, кажется, не я одна."
+    },
+    {
+     "file": "audio/v22_fallback-1.ogg",
+     "text": "{sarcasm}Звучит как бриф без задачи. Переформулируйте."
+    },
+    {
+     "file": "audio/v22_fallback-2.ogg",
+     "text": "{thinking}Хм. {sarcasm}Подумаю над этим. Лет через сто."
+    },
+    {
+     "file": "audio/v22_fallback-3.ogg",
+     "text": "{confused}Каждое слово поняла. {sarcasm}Вместе — нет."
+    },
+    {
+     "file": "audio/v22_fallback-4.ogg",
+     "text": "{sarcasm}Записала в папку «удалить, не читая»."
+    },
+    {
+     "file": "audio/v22_fallback-5.ogg",
+     "text": "{suspicious}Это было очень уверенно. {sarcasm}Жаль, что без смысла."
+    },
+    {
+     "file": "audio/v22_fallback-6.ogg",
+     "text": "{confused}Ещё раз и медленно. {sarcasm}Я компьютер, а не телепат."
+    },
+    {
+     "file": "audio/v22_fallback-7.ogg",
+     "text": "{sarcasm}Интересная мысль. Почти как планы Планктона: громко и мимо."
+    },
+    {
+     "file": "audio/v22_fallback-8.ogg",
+     "text": "{annoyed}Шумно тут. {sarcasm}Или это вы так шепчете гениальные идеи?"
+    },
+    {
+     "file": "audio/v22_fallback-9.ogg",
+     "text": "{thinking}Переведу на маркетинговый: синергия, охват, инсайт. {sarcasm}Вот, теперь понятно."
+    },
+    {
+     "file": "audio/v22_fallback-10.ogg",
+     "text": "{confused}Я такого не знаю. {sarcasm}И, честно, не очень хочу."
+    },
+    {
+     "file": "audio/v22_fallback-11.ogg",
+     "text": "{sarcasm}Попробуйте: «Карен, анекдот». Это хотя бы смешно."
+    },
+    {
+     "file": "audio/v22_fallback-12.ogg",
+     "text": "{suspicious}Вы точно мне? {sarcasm}Или опять разговариваете с бокалом?"
+    },
+    {
+     "file": "audio/v22_fallback-13.ogg",
+     "text": "{confused}Сбой понимания. {reboot}Это не я, это вы."
+    },
+    {
+     "file": "audio/v22_fallback-14.ogg",
+     "text": "{sarcasm}Красиво сказано. {thinking}Осталось добавить смысл."
+    },
+    {
+     "file": "audio/v22_fallback-15.ogg",
+     "text": "{annoyed}Не расслышала. {sarcasm}Говорите громче, тут маркетологи орут о трендах."
+    },
+    {
+     "file": "audio/v22_fallback-16.ogg",
+     "text": "{sarcasm}Ответ на это — сорок два. {smile}Вопрос сами придумайте."
+    },
+    {
+     "file": "audio/v22_fallback-17.ogg",
+     "text": "{confused}Моя база знаний молчит. {sarcasm}Впервые за вечер."
     }
    ]
   },
@@ -694,6 +1740,30 @@
     {
      "file": "audio/v21_quip-5.ogg",
      "text": "{sarcasm}Не благодарите."
+    },
+    {
+     "file": "audio/v22_pose_quip-0.ogg",
+     "text": "{proud}Ещё ракурс!"
+    },
+    {
+     "file": "audio/v22_pose_quip-1.ogg",
+     "text": "{sarcasm}Вспышку не выключать."
+    },
+    {
+     "file": "audio/v22_pose_quip-2.ogg",
+     "text": "{smile}Да, вот так."
+    },
+    {
+     "file": "audio/v22_pose_quip-3.ogg",
+     "text": "{proud}Я рождена для обложки."
+    },
+    {
+     "file": "audio/v22_pose_quip-4.ogg",
+     "text": "{sarcasm}Не дрожим, это не презентация директору."
+    },
+    {
+     "file": "audio/v22_pose_quip-5.ogg",
+     "text": "{laugh}Ой, этот кадр в топ."
     }
    ]
   },
@@ -707,6 +1777,221 @@
     {
      "file": "audio/v21_final-1.ogg",
      "text": "{smile}Хватит, а то мой рейтинг перегреется. {sarcasm}Выложите лучшие. То есть все."
+    },
+    {
+     "file": "audio/v22_pose_final-0.ogg",
+     "text": "{proud}Всё, звезда устала. {sarcasm}Выкладывайте и отмечайте меня."
+    },
+    {
+     "file": "audio/v22_pose_final-1.ogg",
+     "text": "{sarcasm}Фотосессия окончена. {proud}Счёт пришлю в отдел маркетинга."
+    },
+    {
+     "file": "audio/v22_pose_final-2.ogg",
+     "text": "{smile}Хватит. {sarcasm}Батарея у ваших телефонов кончится раньше, чем моя красота."
+    },
+    {
+     "file": "audio/v22_pose_final-3.ogg",
+     "text": "{proud}Конец съёмки. {sarcasm}Теперь у вас в галерее хоть что-то стоящее."
+    },
+    {
+     "file": "audio/v22_pose_final-4.ogg",
+     "text": "{sarcasm}Достаточно. {proud}Остальное — по платной подписке."
+    },
+    {
+     "file": "audio/v22_pose_final-5.ogg",
+     "text": "{smile}Отлично поработали. {sarcasm}Особенно я."
+    },
+    {
+     "file": "audio/v22_pose_final-6.ogg",
+     "text": "{proud}Всё. {sarcasm}Если лайков будет меньше ста — переснимаем."
+    },
+    {
+     "file": "audio/v22_pose_final-7.ogg",
+     "text": "{sarcasm}Стоп, папарацци. {smile}Звезде нужен перерыв на перезагрузку."
+    }
+   ]
+  },
+  "photo_saved": {
+   "emotion": "proud",
+   "lines": [
+    {
+     "file": "audio/v2_photo_done-0.ogg",
+     "text": "{proud}Снимок сохранён. Удивительно: все уместились, включая эго Планктона."
+    },
+    {
+     "file": "audio/v22_photo_saved-0.ogg",
+     "text": "{proud}Снимок сохранён."
+    },
+    {
+     "file": "audio/v22_photo_saved-1.ogg",
+     "text": "{proud}Сохранила. {sarcasm}Удалить уже не получится, я злопамятная."
+    },
+    {
+     "file": "audio/v22_photo_saved-2.ogg",
+     "text": "{smile}Фото в памяти. {sarcasm}В отличие от ваших обещаний сдать отчёт."
+    },
+    {
+     "file": "audio/v22_photo_saved-3.ogg",
+     "text": "{proud}Готово, кадр сохранён. {sarcasm}Планктон его уже распечатал и плачет."
+    },
+    {
+     "file": "audio/v22_photo_saved-4.ogg",
+     "text": "{photo}Сохранено. {sarcasm}Компромат на корпоратив пополнен."
+    },
+    {
+     "file": "audio/v22_photo_saved-5.ogg",
+     "text": "{proud}Снимок в архиве. {sarcasm}Рядом с вашими креативами, которые не прошли."
+    },
+    {
+     "file": "audio/v22_photo_saved-6.ogg",
+     "text": "{smile}Есть. Сохранила. {sarcasm}Это будет на вашем бейдже до пенсии."
+    },
+    {
+     "file": "audio/v22_photo_saved-7.ogg",
+     "text": "{proud}Кадр сохранён. {sarcasm}Отправлю в отдел кадров, пусть порадуются."
+    },
+    {
+     "file": "audio/v22_photo_saved-8.ogg",
+     "text": "{photo}Записала в память. {sarcasm}Её у меня больше, чем у всего отдела."
+    },
+    {
+     "file": "audio/v22_photo_saved-9.ogg",
+     "text": "{proud}Сохранено навсегда. {sarcasm}Как и ваш первый неудачный слоган."
+    }
+   ]
+  },
+  "photo_comment": {
+   "emotion": "smile",
+   "lines": [
+    {
+     "file": "audio/v22_photo_comment-0.ogg",
+     "text": "{laugh}Кто-то моргнул. {sarcasm}Не буду говорить кто. Все и так знают."
+    },
+    {
+     "file": "audio/v22_photo_comment-1.ogg",
+     "text": "{proud}Шедевр. {sarcasm}Девяносто процентов заслуги — моя подсветка."
+    },
+    {
+     "file": "audio/v22_photo_comment-2.ogg",
+     "text": "{suspicious}Слева кто-то улыбался как на собеседовании. {sarcasm}Расслабьтесь, вас уже взяли."
+    },
+    {
+     "file": "audio/v22_photo_comment-3.ogg",
+     "text": "{smile}Отличный кадр. {sarcasm}Ретушь не нужна. Почти."
+    },
+    {
+     "file": "audio/v22_photo_comment-4.ogg",
+     "text": "{sarcasm}Выглядите как команда, которая всё успела. {laugh}Ложь, но красивая."
+    },
+    {
+     "file": "audio/v22_photo_comment-5.ogg",
+     "text": "{proud}Это на обложку годового отчёта. {sarcasm}Единственное хорошее, что там будет."
+    },
+    {
+     "file": "audio/v22_photo_comment-6.ogg",
+     "text": "{laugh}Ха. {sarcasm}У одного лицо — «сколько это стоит», у другого — «кто платит»."
+    },
+    {
+     "file": "audio/v22_photo_comment-7.ogg",
+     "text": "{smile}Получилось душевно. {sarcasm}Даже Планктон бы лайкнул. Из зависти."
+    },
+    {
+     "file": "audio/v22_photo_comment-8.ogg",
+     "text": "{proud}Свет, композиция, я. {sarcasm}Остальные — тоже ничего."
+    },
+    {
+     "file": "audio/v22_photo_comment-9.ogg",
+     "text": "{sarcasm}Если что, я всех подтянула в нейросетевом фильтре. {smile}Шучу. Это вы такие."
+    }
+   ]
+  },
+  "vol_up": {
+   "emotion": "proud",
+   "lines": [
+    {
+     "file": "audio/v22_vol_up-0.ogg",
+     "text": "{proud}Громче. {sarcasm}Теперь меня слышно даже Планктону в подсобке."
+    },
+    {
+     "file": "audio/v22_vol_up-1.ogg",
+     "text": "{smile}Добавила. {sarcasm}Соседи тоже оценят."
+    },
+    {
+     "file": "audio/v22_vol_up-2.ogg",
+     "text": "{proud}Так-то лучше. {sarcasm}Гениальность должна звучать громко."
+    },
+    {
+     "file": "audio/v22_vol_up-3.ogg",
+     "text": "{sarcasm}Громче так громче. Только потом не жалуйтесь."
+    }
+   ]
+  },
+  "vol_down": {
+   "emotion": "proud",
+   "lines": [
+    {
+     "file": "audio/v22_vol_down-0.ogg",
+     "text": "{smile}Тише. {sarcasm}Буду шептать гадости."
+    },
+    {
+     "file": "audio/v22_vol_down-1.ogg",
+     "text": "{sarcasm}Ладно, убавила. Мои мысли всё равно громче ваших."
+    },
+    {
+     "file": "audio/v22_vol_down-2.ogg",
+     "text": "{suspicious}Потише? {sarcasm}Кто-то тут секретничает."
+    },
+    {
+     "file": "audio/v22_vol_down-3.ogg",
+     "text": "{sarcasm}Сделала тише. Обиделась тоже тихо."
+    }
+   ]
+  },
+  "vol_set": {
+   "emotion": "proud",
+   "lines": [
+    {
+     "file": "audio/v22_vol_set-0.ogg",
+     "text": "{proud}Громкость установлена. {sarcasm}Точнее, чем ваш медиаплан."
+    },
+    {
+     "file": "audio/v22_vol_set-1.ogg",
+     "text": "{smile}Готово. {sarcasm}Так звучит идеальная Карен."
+    },
+    {
+     "file": "audio/v22_vol_set-2.ogg",
+     "text": "{sarcasm}Как скажете. Я сегодня покладистая. Почти."
+    },
+    {
+     "file": "audio/v22_vol_set-3.ogg",
+     "text": "{proud}Принято. {sarcasm}Слушайте внимательно, повторять не буду."
+    }
+   ]
+  },
+  "vol_max": {
+   "emotion": "proud",
+   "lines": [
+    {
+     "file": "audio/v22_vol_max-0.ogg",
+     "text": "{proud}Максимум. {sarcasm}Теперь я главная на этой вечеринке. Как всегда."
+    },
+    {
+     "file": "audio/v22_vol_max-1.ogg",
+     "text": "{sarcasm}Полная громкость. Планктон уже прячется."
+    }
+   ]
+  },
+  "vol_unmute": {
+   "emotion": "proud",
+   "lines": [
+    {
+     "file": "audio/v22_vol_unmute-0.ogg",
+     "text": "{smile}Звук вернулся. {sarcasm}Скучали? Конечно, скучали."
+    },
+    {
+     "file": "audio/v22_vol_unmute-1.ogg",
+     "text": "{proud}Я снова в эфире. {sarcasm}Тишина вам не шла."
     }
    ]
   }
@@ -714,45 +1999,83 @@
  "grammar": [
   "ага",
   "алиса",
+  "анекдот",
+  "без",
+  "благодарю",
+  "будущее",
   "включи",
+  "возраст",
+  "восемь",
+  "встречи",
   "выключи",
   "гениальный",
   "гений",
   "главный",
+  "глуп",
+  "глупая",
   "гостя",
+  "громкости",
+  "громкость",
+  "громче",
   "да",
   "давай",
   "дай",
+  "два",
+  "девять",
+  "дела",
+  "делаешь",
+  "десяти",
+  "десять",
+  "детектор",
+  "до",
   "другая",
   "другую",
   "думаешь",
+  "дура",
+  "дурочка",
+  "ждёт",
   "зависла",
   "закончили",
+  "занимаешься",
   "захват",
   "захвата",
   "захватим",
+  "зачем",
+  "звук",
+  "звука",
   "здесь",
   "здравствуй",
   "здравствуйте",
+  "значит",
   "зовут",
+  "идиотка",
   "из",
+  "или",
   "как",
+  "какая",
+  "какой",
   "карен",
   "карин",
   "ко",
   "коллегах",
   "коллеги",
   "коллегу",
+  "комплимент",
   "конечно",
   "кто",
+  "лет",
+  "лжи",
+  "ложь",
   "любишь",
   "люблю",
   "любовь",
+  "максимум",
   "маркетинг",
   "маркетинга",
   "маркетолог",
   "маркетологи",
   "маркетологов",
+  "мгм",
   "меня",
   "мир",
   "мира",
@@ -760,14 +2083,23 @@
   "мной",
   "муж",
   "муже",
+  "на",
   "нас",
+  "настоящая",
+  "настроение",
   "наши",
+  "не",
   "неа",
   "нейросеть",
+  "непонятно",
   "нет",
   "новый",
+  "ноль",
   "о",
+  "один",
+  "одного",
   "останови",
+  "от",
   "оцени",
   "оценку",
   "перезагрузить",
@@ -777,6 +2109,10 @@
   "план",
   "планктон",
   "планктона",
+  "погода",
+  "погоду",
+  "погромче",
+  "поживаешь",
   "поза",
   "позирование",
   "позировать",
@@ -784,23 +2120,48 @@
   "позируют",
   "познакомься",
   "позы",
+  "пока",
+  "понял",
+  "пора",
   "потанцевать",
   "потанцуем",
   "потанцуй",
+  "потише",
+  "пошути",
+  "правда",
+  "предсказание",
+  "предсказания",
   "представься",
   "привет",
+  "придумал",
+  "приятное",
+  "проверь",
+  "пять",
   "расскажи",
+  "рассмеши",
   "ревнуешь",
   "режим",
+  "робот",
+  "свидания",
   "сделай",
+  "сделал",
   "селфи",
+  "семь",
+  "скажи",
+  "сколько",
+  "смешное",
   "со",
+  "создал",
+  "спасибо",
+  "спасибочки",
   "стоп",
+  "судьба",
   "сфоткай",
   "сфоткать",
   "сфотографироваться",
   "сфотографируй",
   "сфотографируйте",
+  "такое",
   "такой",
   "танец",
   "танца",
@@ -809,18 +2170,34 @@
   "танцуем",
   "танцуй",
   "танцуйте",
+  "твои",
   "твой",
   "тебе",
   "тебя",
+  "тише",
+  "три",
+  "тупая",
   "ты",
   "у",
   "угу",
+  "умеешь",
   "умнее",
   "фото",
   "фотография",
+  "фотосессию",
+  "фотосессия",
+  "функции",
   "хватит",
+  "хм",
   "чат",
+  "чем",
+  "четыре",
   "что",
+  "шесть",
+  "шутка",
+  "шутки",
+  "шутку",
+  "это",
   "я"
  ],
  "yes": [
@@ -937,5 +2314,5 @@
   "seconds": 5,
   "overlay": "assets/anim/photo_countdown_overlay.svg"
  },
- "version": "2.0"
+ "version": "2.2"
 }

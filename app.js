@@ -44,7 +44,7 @@ function setState(s,holdMs){
 }
 function setMood(m){mood=(m&&!WAVE_STATES.has(m))?m:null;if(state==='speaking')setState('speaking')}
 function clearMood(){mood=null;moodTimers.forEach(clearTimeout);moodTimers=[]}
-window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),intent:t=>KarenCommands.intent(t),get lastLatency(){return lastLat},_voiceAt:0,get asr(){return ASR.state},handleText:(t)=>handleText(t,performance.now()),photo:()=>photoFlow(KarenCommands.line(KarenCommands.byId('photo')),null),get dance(){return dance},get posing(){return posing}};
+window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),intent:t=>KarenCommands.intent(t),get lastLatency(){return lastLat},_voiceAt:0,get asr(){return ASR.state},handleText:(t)=>handleText(t,performance.now()),photo:()=>photoFlow(KarenCommands.line(KarenCommands.byId('photo')),null),get dance(){return dance},get posing(){return posing},setVolume};
 
 // ---------- waveform ----------
 const cv=$('#wave'),cx=cv.getContext('2d');
@@ -136,7 +136,7 @@ let history=[],lastTurn=0,lastLat=null;
 const sleep=(ms,sig)=>new Promise(r=>{const t=setTimeout(r,ms);sig&&sig.addEventListener('abort',()=>{clearTimeout(t);r()})});
 function newTurn(){stop(false);pauseDance();const a=new AbortController();busy=a;return a.signal}
 function showSubs(t){const s=$('#subs');s.hidden=!cfg.subs||!t;s.textContent=t}
-function stop(full=true){fx(null);endPose();if(full)stopDance();if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle');if(wake.wanted)setTimeout(ensureWake,600)}}
+function stop(full=true){fx(null);endPose();if(loving){loving=false;DR.stop();$('#danceLayer').hidden=true}if(full)stopDance();if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle');if(wake.wanted)setTimeout(ensureWake,600)}}
 function markLatency(t0){if(t0==null)return;lastLat=Math.round(window.karen._voiceAt-t0);log('задержка (конец речи → голос):',lastLat+' мс')}
 // play one prerecorded line with its emotion; resolves when done
 async function sayLine(l,sig,t0,{after=true}={}){
@@ -160,10 +160,30 @@ async function sayLine(l,sig,t0,{after=true}={}){
   if(after){const react=WAVE_STATES.has(endEmo)?null:endEmo;react?setState(react,react==='sleep'?6000:1800):setState('idle')}
 }
 // main router: text (from STT or debug field) → local intent → prerecorded voice. t0 = moment speech ended.
+// ---------- v2.2 voice volume: in-app gain on every clip (cfg.volume 0..1, 10 steps, localStorage) ----------
+const NUMW={ноль:0,один:1,одна:1,два:2,две:2,три:3,четыре:4,пять:5,шесть:6,семь:7,восемь:8,девять:9,десять:10};
+function volTarget(text){const t=KarenCommands.norm(text),has=w=>t.includes(' '+w+' ');const cur=Math.round(cfg.volume*10);
+  if(has('выключи')&&t.includes(' звук')||has('без')&&t.includes(' звук'))return{v:0,k:'mute'};
+  if(has('включи')&&t.includes(' звук'))return{v:+(LS('volPrev')||5),k:'vol_unmute'};
+  if(t.includes(' погромче')||has('громче'))return{v:Math.min(10,cur+1),k:'vol_up'};
+  if(t.includes(' потише')||has('тише'))return{v:Math.max(0,cur-1),k:'vol_down'};
+  if(has('максимум'))return{v:10,k:'vol_max'};
+  const n=t.trim().split(' ').map(w=>NUMW[w]).filter(x=>x!=null).pop();if(n!=null)return{v:n,k:n===10?'vol_max':n===0?'mute':'vol_set'};
+  return{v:cur,k:'vol_set'}}
+let volT=0;
+function showVol(n){const el=$('#volBar');el.innerHTML=`<b>${n===0?'🔇':'🔊'}</b>`+Array.from({length:10},(_,i)=>`<i class="${i<n?'on':''}"></i>`).join('')+`<span>${n*10}%</span>`;el.hidden=false;clearTimeout(volT);volT=setTimeout(()=>el.hidden=true,1500)}
+function setVolume(n){n=Math.max(0,Math.min(10,Math.round(n)));const cur=Math.round(cfg.volume*10);if(n===0&&cur>0)SS('volPrev',cur);cfg.volume=n/10;SS('volume',cfg.volume);const r=$('#volume');if(r)r.value=cfg.volume;showVol(n);log('громкость',n*10+'%');return n}
+async function volumeFlow(text,t0){const {v,k}=volTarget(text);const n=setVolume(v);
+  if(n===0){if(!dance.on){const p=state;setState('sleep',1500)}return}
+  const l=KarenCommands.sys(n===10?'vol_max':k);if(!l)return;
+  if(dance.on){clip(l.file).then(b=>playBuf(b,new AbortController().signal)).catch(()=>{});return} // keep the dance running
+  const sig=newTurn();await sayLine(l,sig,t0);if(busy&&busy.signal===sig)busy=null}
+
 async function handleText(text,t0){
+  {const vi=KarenCommands.intent(text,{dancing:dance.on});if(vi&&vi.mode==='volume'){log('фраза:',text);return volumeFlow(text,t0)}}
   const wasPosing=posing;const sig=newTurn();log('фраза:',text);
   if(follow&&Date.now()<follow.until){const f=follow;follow=null;const k=KarenCommands.yesno(text); // answer to Karen's yes/no question
-    const kk=k||(f.f.any?'any':null);
+    const kk=(k&&f.f[k])?k:(f.f.any?'any':null);
     if(kk){const b=KarenCommands.branch(f.f,kk);await sayLine(b,sig,t0,{after:!b.follow});if(sig.aborted)return;if(busy&&busy.signal===sig)busy=null;
       if(b.follow){follow={f:b.follow,until:Date.now()+15000};if(ASR.state==='ready'||(cfg.cloud&&backend().name==='cloud'))return listen();setState('idle')}return}}
   follow=null;
@@ -172,7 +192,7 @@ async function handleText(text,t0){
   if(it&&it.mode==='posing')return posingFlow(it,sig,t0);
   if(it&&it.mode==='photo'){busy=null;return photoFlow(KarenCommands.line(it),t0)}
   if(it&&it.mode==='dance'){if(dance.on&&!dance.intro){busy=null;log('танец уже идёт');return}busy=null;return startDance(it,sig,t0)}
-  if(it&&it.mode==='love_declaration'){const l=KarenCommands.line(it);fx(it.visual);await sayLine(l,sig,t0);fx(null);if(busy&&busy.signal===sig)busy=null;return}
+  if(it&&(it.mode==='love_declaration'||it.id==='love')){const l=KarenCommands.line(it);loveOn();await sayLine(l,sig,t0);await loveOff();if(busy&&busy.signal===sig)busy=null;return}
   if(it){const l=KarenCommands.line(it);await sayLine(l,sig,t0,{after:!l.follow});if(sig.aborted)return;if(busy&&busy.signal===sig)busy=null;
     if(l.follow){follow={f:l.follow,until:Date.now()+15000};if(ASR.state==='ready'||(cfg.cloud&&backend().name==='cloud'))return listen();setState('idle')}return}
   if(KarenCommands.hasName(text)&&KarenCommands.stripName(text).length<3){ // only «Карен» → short ack, then listen for the phrase
@@ -365,6 +385,10 @@ addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&$('#menu').hidden
 const svgCache={};
 function svgFile(u){return svgCache[u]||(svgCache[u]=fetch(u).then(r=>r.text()).then(t=>t.replace(/width="960" height="540"/,'preserveAspectRatio="xMidYMid meet"')).catch(()=>''))}
 const reduceMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+// v2.2 love reaction on the shared canvas (dance.js drawLove): phases follow mood/state of the scene
+let loving=false;
+function loveOn(){loving=true;$('#danceLayer').hidden=false;DR.love(()=>mood||state)}
+async function loveOff(){if(!loving)return;await DR.loveEnd();if(!loving)return;loving=false;if(!dance.on&&!posing){DR.stop();$('#danceLayer').hidden=true}}
 async function fx(u){const el=$('#fxLayer');if(!u){el.hidden=true;el.innerHTML='';return}el.innerHTML=await svgFile(u);el.hidden=false;if(reduceMotion())el.querySelector('svg')?.pauseAnimations?.()}
 const dance={on:false,intro:false,paused:true,pos:0,cycle:1,beat:null,spoken:new Set(),lastSpeech:-1e9,tick:null,last:0,ctl:null,idleSince:0};
 async function startDance(it,sig,t0){
@@ -453,7 +477,7 @@ async function photoFlow(line,t0){
   $('#camShare').hidden=!(navigator.canShare&&navigator.canShare({files:[file]}));
   $('#camShare').onclick=async ev=>{ev.stopPropagation();try{await navigator.share({files:[file],title:'День Маркетолога StP 2026'})}catch(e){log('share:',e.name)}};
   $('#camDone').onclick=ev=>{ev.stopPropagation();closeCam();setState('idle')};
-  busy=null;const s2=newTurn();busy=null;sayLine(KarenCommands.sys('photo_done'),s2,null,{after:false}).then(()=>{if(!s2.aborted&&state==='speaking')setState('proud',3000)});
+  busy=null;const s2=newTurn();busy=null;sayLine(KarenCommands.sys('photo_saved'),s2,null,{after:false}).then(()=>!s2.aborted&&sayLine(KarenCommands.sys('photo_comment'),s2,null,{after:false})).then(()=>{if(!s2.aborted&&state==='speaking')setState('proud',3000)});
   camTimer=setTimeout(()=>{closeCam();setState('idle')},dance.on?9000:45000); // dancing → back to the dance after the photo
 }
 
