@@ -50,7 +50,7 @@ body.listen body:not([data-state=idle]) #cam{position:fixed;inset:0;z-index:8;ba
 body[data-asr=error] #modelPanel{border-color:#ff6b6b88}
 .inst-help{font-size:14px!important;color:#cfe!important}
 
-#wakeGate{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:12vh;gap:.4em;background:rgba(8,20,29,.35);color:#BEFF31;font:500 clamp(18px,2.6vw,30px)/1.3 system-ui,sans-serif;cursor:pointer;animation:gateIn .6s ease}
+#wakeGate{position:fixed;inset:0;z-index:6;background:transparent;cursor:pointer}
 #wakeGate small{color:#9fb3a0;font-size:.6em}
 #wakeGate[hidden]{display:none}
 @keyframes gateIn{from{opacity:0}to{opacity:1}}
@@ -58,3 +58,4 @@ body[data-asr=error] #modelPanel{border-color:#ff6b6b88}
 /* v2.0 dance / love / countdown SVG layers */
 .svglayer{position:absolute;inset:0;pointer-events:none;background:#08141D}.svglayer svg{width:100%;height:100%;display:block}
 #camOverlay{position:absolute;inset:0;pointer-events:none}#camOverlay svg{width:100%;height:100%}
+#danceCanvas{width:100%;height:100%;display:block}

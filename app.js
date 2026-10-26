@@ -44,7 +44,7 @@ function setState(s,holdMs){
 }
 function setMood(m){mood=(m&&!WAVE_STATES.has(m))?m:null;if(state==='speaking')setState('speaking')}
 function clearMood(){mood=null;moodTimers.forEach(clearTimeout);moodTimers=[]}
-window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),intent:t=>KarenCommands.intent(t),get lastLatency(){return lastLat},_voiceAt:0,get asr(){return ASR.state},handleText:(t)=>handleText(t,performance.now()),photo:()=>photoFlow(KarenCommands.line(KarenCommands.byId('photo')),null),get dance(){return dance}};
+window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),intent:t=>KarenCommands.intent(t),get lastLatency(){return lastLat},_voiceAt:0,get asr(){return ASR.state},handleText:(t)=>handleText(t,performance.now()),photo:()=>photoFlow(KarenCommands.line(KarenCommands.byId('photo')),null),get dance(){return dance},get posing(){return posing}};
 
 // ---------- waveform ----------
 const cv=$('#wave'),cx=cv.getContext('2d');
@@ -136,7 +136,7 @@ let history=[],lastTurn=0,lastLat=null;
 const sleep=(ms,sig)=>new Promise(r=>{const t=setTimeout(r,ms);sig&&sig.addEventListener('abort',()=>{clearTimeout(t);r()})});
 function newTurn(){stop(false);pauseDance();const a=new AbortController();busy=a;return a.signal}
 function showSubs(t){const s=$('#subs');s.hidden=!cfg.subs||!t;s.textContent=t}
-function stop(full=true){fx(null);if(full)stopDance();if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle');if(wake.wanted)setTimeout(ensureWake,600)}}
+function stop(full=true){fx(null);endPose();if(full)stopDance();if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle');if(wake.wanted)setTimeout(ensureWake,600)}}
 function markLatency(t0){if(t0==null)return;lastLat=Math.round(window.karen._voiceAt-t0);log('задержка (конец речи → голос):',lastLat+' мс')}
 // play one prerecorded line with its emotion; resolves when done
 async function sayLine(l,sig,t0,{after=true}={}){
@@ -161,14 +161,15 @@ async function sayLine(l,sig,t0,{after=true}={}){
 }
 // main router: text (from STT or debug field) → local intent → prerecorded voice. t0 = moment speech ended.
 async function handleText(text,t0){
-  const sig=newTurn();log('фраза:',text);
+  const wasPosing=posing;const sig=newTurn();log('фраза:',text);
   if(follow&&Date.now()<follow.until){const f=follow;follow=null;const k=KarenCommands.yesno(text); // answer to Karen's yes/no question
     const kk=k||(f.f.any?'any':null);
     if(kk){const b=KarenCommands.branch(f.f,kk);await sayLine(b,sig,t0,{after:!b.follow});if(sig.aborted)return;if(busy&&busy.signal===sig)busy=null;
       if(b.follow){follow={f:b.follow,until:Date.now()+15000};if(ASR.state==='ready'||(cfg.cloud&&backend().name==='cloud'))return listen();setState('idle')}return}}
   follow=null;
   const it=KarenCommands.intent(text,{dancing:dance.on});
-  if(it&&it.mode==='dance_stop'){busy=null;const was=dance.on;stopDance();log(was?'танец остановлен':'стоп (танца нет)');setState('idle');return}
+  if(it&&it.mode==='dance_stop'){const was=dance.on;stopDance();log(was?'танец остановлен':wasPosing?'позирование остановлено':'стоп');if(wasPosing){await sayLine(KarenCommands.sys('pose_final'),sig,t0);if(busy&&busy.signal===sig)busy=null;return}busy=null;setState('idle');return}
+  if(it&&it.mode==='posing')return posingFlow(it,sig,t0);
   if(it&&it.mode==='photo'){busy=null;return photoFlow(KarenCommands.line(it),t0)}
   if(it&&it.mode==='dance'){if(dance.on&&!dance.intro){busy=null;log('танец уже идёт');return}busy=null;return startDance(it,sig,t0)}
   if(it&&it.mode==='love_declaration'){const l=KarenCommands.line(it);fx(it.visual);await sayLine(l,sig,t0);fx(null);if(busy&&busy.signal===sig)busy=null;return}
@@ -372,11 +373,13 @@ async function startDance(it,sig,t0){
   setState('smile');await sleep(((KarenCommands.data.dance||{}).intro_hold||2.5)*1000,sig);if(sig.aborted||!dance.on)return;
   dance.intro=false;if(busy&&busy.signal===sig)busy=null;setState('idle');resumeDance();
 }
-function setBeatVisual(b){if(dance.beat===b.id)return;dance.beat=b.id;svgFile(b.svg).then(t=>{if(dance.beat!==b.id||dance.paused)return;const el=$('#danceLayer');el.innerHTML=t;if(reduceMotion())el.querySelector('svg')?.pauseAnimations?.()})}
-function resumeDance(){if(!dance.on||!dance.paused)return;dance.paused=false;dance.beat=null;dance.last=performance.now();$('#danceLayer').hidden=false;document.body.classList.add('dancing');
+// v2.1: live canvas choreography (dance.js) — 6 styles × 4 figures @120 BPM; same canvas shows poses
+const DR=KarenDance.make($('#danceCanvas'),{level:()=>targetLevel,mic:()=>micLvl,reduce:reduceMotion});window.karen.dr=DR;
+function setBeatVisual(b){dance.beat=b.id}
+function resumeDance(){if(!dance.on||!dance.paused)return;dance.paused=false;dance.beat=null;dance.last=performance.now();$('#danceLayer').hidden=false;document.body.classList.add('dancing');DR.dance(dance.pos);
   log('танец: цикл',dance.cycle,'позиция',Math.round(dance.pos)+' с');dance.tick=setInterval(danceTick,200);danceTick()}
 function pauseDance(){if(dance.paused)return;dance.paused=true;clearInterval(dance.tick);dance.tick=null;if(dance.ctl){dance.ctl.abort();dance.ctl=null}
-  const el=$('#danceLayer');el.hidden=true;el.innerHTML='';dance.beat=null;document.body.classList.remove('dancing')}
+  DR.stop();$('#danceLayer').hidden=true;dance.beat=null;document.body.classList.remove('dancing')}
 function stopDance(){if(dance.intro&&busy)busy.abort();dance.on=false;dance.intro=false;pauseDance()}
 function danceTick(){
   const D=KarenCommands.data.dance;if(!D||dance.paused)return;const now=performance.now();dance.pos+=(now-dance.last)/1000;dance.last=now;
@@ -389,6 +392,19 @@ function danceTick(){
     dance.spoken.add(x.id);dance.lastSpeech=now;const ctl=new AbortController();dance.ctl=ctl;log('танец: реплика',x.id);
     clip(x.line.file).then(buf=>ctl.signal.aborted?null:playBuf(buf,ctl.signal)).catch(e=>log('dance audio:',e.message)).finally(()=>{if(dance.ctl===ctl)dance.ctl=null});break}
 }
+// ---------- v2.1 «режим позирования»: Karen poses full-screen for guests' phones (tablet camera untouched) ----------
+let posing=false,poseQ=[];
+function nextPose(){if(!poseQ.length){poseQ=[...KarenDance.POSES].sort(()=>Math.random()-.5)}return poseQ.shift()}
+function endPose(){if(!posing)return;posing=false;DR.stop();$('#danceLayer').hidden=true;document.body.classList.remove('posing')}
+async function posingFlow(it,sig,t0){
+  const P=KarenCommands.data.posing||{seconds:30,hold_ms:3600};
+  await sayLine(KarenCommands.line(it),sig,t0,{after:false});if(sig.aborted)return;
+  posing=true;document.body.classList.add('posing');$('#danceLayer').hidden=false;setState('idle');
+  const end=performance.now()+P.seconds*1000;let i=0;
+  while(performance.now()<end){const name=nextPose();DR.pose(name);log('поза:',name);
+    if(i%2===1){const q=KarenCommands.sys('pose_quip');if(q)clip(q.file).then(b=>{if(!sig.aborted&&!playing)return playBuf(b,sig)}).catch(()=>{})}
+    await sleep(P.hold_ms,sig);if(sig.aborted)return;i++}
+  endPose();await sayLine(KarenCommands.sys('pose_final'),sig,null);if(busy&&busy.signal===sig)busy=null}
 // resume the dance after any scene / photo / listen once Karen is quiet and idle again (no second intro)
 setInterval(()=>{if(!dance.on||!dance.paused||dance.intro){dance.idleSince=0;return}
   const quiet=!busy&&!listenOn&&!playing&&state==='idle'&&!document.body.classList.contains('cam')&&$('#menu').hidden;
