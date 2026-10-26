@@ -136,14 +136,14 @@ let history=[],lastTurn=0,lastLat=null;
 const sleep=(ms,sig)=>new Promise(r=>{const t=setTimeout(r,ms);sig&&sig.addEventListener('abort',()=>{clearTimeout(t);r()})});
 function newTurn(){stop(false);pauseDance();const a=new AbortController();busy=a;return a.signal}
 function showSubs(t){const s=$('#subs');s.hidden=!cfg.subs||!t;s.textContent=t}
-function stop(full=true){fx(null);endPose();if(loving){loving=false;DR.stop();$('#danceLayer').hidden=true}if(full)stopDance();if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle');if(wake.wanted)setTimeout(ensureWake,600)}}
+function stop(full=true){fx(null);endPose();if(greeting){greeting=false;DR.stop();$('#danceLayer').hidden=true}if(loving){loving=false;DR.stop();$('#danceLayer').hidden=true}if(full)stopDance();if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle');if(wake.wanted)setTimeout(ensureWake,600)}}
 function markLatency(t0){if(t0==null)return;lastLat=Math.round(window.karen._voiceAt-t0);log('задержка (конец речи → голос):',lastLat+' мс')}
 // play one prerecorded line with its emotion; resolves when done
-async function sayLine(l,sig,t0,{after=true}={}){
+async function sayLine(l,sig,t0,{after=true,onSeg=null}={}){
   if(!l)return;
   if(l.segments&&l.segments.length){ // v2.0 scenes: one clip per segment, own emotion, timed pauses, final hold
     const S=l.segments;log(`[сцена] ${l.id}`);
-    for(let i=0;i<S.length;i++){const g=S[i];
+    for(let i=0;i<S.length;i++){const g=S[i];onSeg&&onSeg(i);
       await sayLine({id:l.id+'#'+i,file:g.file,text:g.text,emotion:g.emotion,steps:[]},sig,i?null:t0,{after:false});if(sig.aborted)return;
       if(g.pause_after_ms&&i<S.length-1){mood=WAVE_STATES.has(g.emotion)?null:g.emotion;setState('speaking');await sleep(g.pause_after_ms,sig);if(sig.aborted)return}}
     if(after){const e=S[S.length-1].emotion,h=S[S.length-1].hold_after_ms||1800;WAVE_STATES.has(e)?setState('idle'):setState(e,h)}
@@ -192,6 +192,7 @@ async function handleText(text,t0){
   if(it&&it.mode==='posing')return posingFlow(it,sig,t0);
   if(it&&it.mode==='photo'){busy=null;return photoFlow(KarenCommands.line(it),t0)}
   if(it&&it.mode==='dance'){if(dance.on&&!dance.intro){busy=null;log('танец уже идёт');return}busy=null;return startDance(it,sig,t0)}
+  if(it&&it.mode==='greet')return greetFlow(it,sig,t0);
   if(it&&(it.mode==='love_declaration'||it.id==='love')){const l=KarenCommands.line(it);loveOn();await sayLine(l,sig,t0);await loveOff();if(busy&&busy.signal===sig)busy=null;return}
   if(it){const l=KarenCommands.line(it);await sayLine(l,sig,t0,{after:!l.follow});if(sig.aborted)return;if(busy&&busy.signal===sig)busy=null;
     if(l.follow){follow={f:l.follow,until:Date.now()+15000};if(ASR.state==='ready'||(cfg.cloud&&backend().name==='cloud'))return listen();setState('idle')}return}
@@ -200,11 +201,13 @@ async function handleText(text,t0){
   if(cfg.llm&&cfg.cloud&&backend().name==='cloud'){busy=null;return turnLLM(text,t0)}
   await sayLine(KarenCommands.sys('fallback'),sig,t0);if(busy&&busy.signal===sig)busy=null;
 }
+// TTS input only: Karen is «Ка́рэн» (stress + hard Р); subtitles keep «Карен»
+const ttsText=t=>String(t).replace(/(^|[^А-Яа-яЁё])([Кк])ар[еэ]н(а|у|ом|е|ой)?(?![А-Яа-яЁё])/g,(m,p,k,e)=>p+k+'+арэн'+(e||''));
 // optional slow path (setting «LLM для непонятных фраз», default off)
 async function turnLLM(text,t0){
   const sig=newTurn();if(Date.now()-lastTurn>5*60e3)history=[];lastTurn=Date.now();setState('thinking');
   const be=backend();let r,blob=null;
-  try{r=await be.chat({text:text.slice(0,500),role:cfg.role,history:history.slice(-10)},sig);blob=await be.tts({text:r.speech,emotion:r.emotion,voice:'jane'},sig)}
+  try{r=await be.chat({text:text.slice(0,500),role:cfg.role,history:history.slice(-10)},sig);blob=await be.tts({text:ttsText(r.speech),emotion:'angry',voice:'jane',speed:1.1},sig)}
   catch(e){if(sig.aborted)return;log('llm failed:',e.message);return sayLine(KarenCommands.sys('fallback'),sig,t0)}
   if(sig.aborted)return;history.push({role:'user',content:text},{role:'assistant',content:r.speech});
   clearMood();mood=WAVE_STATES.has(r.emotion)?null:r.emotion;showSubs(r.speech);setState('speaking');
@@ -387,6 +390,13 @@ function svgFile(u){return svgCache[u]||(svgCache[u]=fetch(u).then(r=>r.text()).
 const reduceMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 // v2.2 love reaction on the shared canvas (dance.js drawLove): phases follow mood/state of the scene
 let loving=false;
+// v2.3 greet colleagues: 3.4 s silent scan intro, then 3 segments (flash on seg 1), DB banner, back to idle
+let greeting=false,greetPh={seg:-1};
+async function greetFlow(it,sig,t0){const l=KarenCommands.line(it);greeting=true;greetPh={seg:-1};$('#danceLayer').hidden=false;DR.greet(()=>greetPh);setState('idle');
+  await sleep(3400,sig);if(!sig.aborted)await sayLine(l,sig,t0,{after:false,onSeg:i=>{greetPh={seg:i}}});
+  if(!sig.aborted){greetPh={seg:3};setState('sarcasm',2800);await sleep(2600,sig)}
+  greeting=false;await DR.greetEnd();if(!dance.on&&!posing&&!loving){DR.stop();$('#danceLayer').hidden=true}if(busy&&busy.signal===sig)busy=null;if(!sig.aborted)setState('idle')}
+window.karen.greetPh=()=>greetPh;
 function loveOn(){loving=true;$('#danceLayer').hidden=false;DR.love(()=>mood||state)}
 async function loveOff(){if(!loving)return;await DR.loveEnd();if(!loving)return;loving=false;if(!dance.on&&!posing){DR.stop();$('#danceLayer').hidden=true}}
 async function fx(u){const el=$('#fxLayer');if(!u){el.hidden=true;el.innerHTML='';return}el.innerHTML=await svgFile(u);el.hidden=false;if(reduceMotion())el.querySelector('svg')?.pauseAnimations?.()}
