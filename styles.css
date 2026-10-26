@@ -52,7 +52,7 @@ body[data-asr=error] #modelPanel{border-color:#ff6b6b88}
 
 #wakeGate{position:fixed;inset:0;z-index:6;background:transparent;cursor:pointer}
 #wakeGate small{color:#9fb3a0;font-size:.6em}
-#wakeGate[hidden]{display:none}
+#wakeGate[hidden],#volBar[hidden]{display:none!important}
 @keyframes gateIn{from{opacity:0}to{opacity:1}}
 
 /* v2.0 dance / love / countdown SVG layers */
