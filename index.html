@@ -15,12 +15,13 @@
 <main id="stage" aria-label="Карен">
   <canvas id="wave"></canvas>
   <div id="faces"></div>
+  <div id="danceLayer" class="svglayer" hidden></div><div id="fxLayer" class="svglayer" hidden></div>
   <div id="subs" hidden></div>
 </main>
 <div id="modelPanel" hidden><p class="mdl-text"></p><progress class="mdl-bar" max="1" hidden></progress><div class="row"><button class="mdl-btn">Скачать модель распознавания</button><button class="inst-btn">Установить на рабочий стол</button></div><p class="inst-help" hidden>Chrome: меню <b>⋮</b> (справа вверху) → «Установить приложение» или «Добавить на главный экран» → «Установить». Иконка «Карен» появится на рабочем столе.</p></div>
 <div id="corner" aria-hidden="true"></div>
 <div id="wakeGate" hidden><span>Нажмите, чтобы разбудить Карен</span><small>дальше — просто скажите «Карен…»</small></div>
-<div id="cam" hidden><video id="camVideo" playsinline muted autoplay></video><canvas id="camFrame"></canvas><div id="camCount"></div><div id="camResult" hidden><img id="camImg" alt="Фото"><div class="row"><button id="camShare">Сохранить в Галерею / поделиться</button><button id="camDone">Готово</button></div><p>Фото уже скачано в «Загрузки» — оно видно в Галерее.</p></div></div>
+<div id="cam" hidden><video id="camVideo" playsinline muted autoplay></video><canvas id="camFrame"></canvas><div id="camCount"></div><div id="camOverlay"></div><div id="camResult" hidden><img id="camImg" alt="Фото"><div class="row"><button id="camShare">Сохранить в Галерею / поделиться</button><button id="camDone">Готово</button></div><p>Фото уже скачано в «Загрузки» — оно видно в Галерее.</p></div></div>
 <div id="rotate" aria-hidden="true">↻</div>
 
 <aside id="menu" hidden>

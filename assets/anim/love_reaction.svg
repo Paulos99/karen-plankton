@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Карен — анимация">
+<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect width="960" height="540" fill="#08141D"/>
+<g opacity="0.11" stroke="#4B8D7A" stroke-width="2"><path d="M0 90H960M0 180H960M0 270H960M0 360H960M0 450H960M120 0V540M240 0V540M360 0V540M480 0V540M600 0V540M720 0V540M840 0V540"/></g>
+
+<g stroke="#BEFF31" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#glow)">
+ <g opacity="1"><animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.14;0.20;1" dur="21s" fill="freeze"/>
+  <ellipse cx="360" cy="210" rx="20" ry="53"/><ellipse cx="605" cy="210" rx="20" ry="53"/><circle cx="480" cy="355" r="30"/>
+ </g>
+ <g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.15;0.23;0.38;0.43;1" dur="21s" fill="freeze"/>
+  <path d="M302 240Q371 212 421 240M549 240Q621 213 670 242M369 355H596"/>
+ </g>
+ <g opacity="0"><animate attributeName="opacity" values="0;0;0;1;1;0;0" keyTimes="0;0.36;0.42;0.46;0.68;0.76;1" dur="21s" fill="freeze"/>
+  <path d="M275 222Q347 160 404 221M554 221Q622 160 689 222M325 326Q478 453 638 326"/>
+ </g>
+ <g opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;1;1" keyTimes="0;0.6;0.68;0.73;0.76;0.82;1" dur="21s" fill="freeze"/>
+  <path d="M270 224Q334 243 398 224M560 211Q623 185 688 208M332 340Q488 406 638 324"/>
+ </g>
+</g>
+<path d="M480 385 C425 342 389 317 395 285 C401 257 442 248 480 280 C519 248 559 257 567 285 C572 319 531 351 480 385 Z" fill="#FE5362" filter="url(#glow)" opacity="0"><animate attributeName="opacity" values="0;0;0;1;1;0;0" keyTimes="0;0.38;0.44;0.47;0.67;0.76;1" dur="21s" fill="freeze"/><animateTransform attributeName="transform" type="scale" values="1;1.06;1" dur="2.5s" begin="9s" repeatCount="3" additive="sum"/></path>
+</svg>

@@ -9,12 +9,17 @@ const last={};
 function parse(l,emotion,id,follow){const steps=[];let out='';String(l.text).split(/(\{\w+\})/).forEach(p=>{const m=p.match(/^\{(\w+)\}$/);if(m)steps.push({pos:out.length,emotion:m[1]});else out+=p});
   out=out.replace(/\s+/g,' ').trim();const n=Math.max(1,out.length);
   return {...l,text:out,steps:steps.map(s=>({at:Math.min(.97,s.pos/n),emotion:s.emotion})),emotion,id,follow:(l.follow||follow)?{...(follow||{}),...(l.follow||{})}:null}}
-const lineFiles=ls=>(ls||[]).flatMap(l=>[l.file,...Object.values(l.follow||{}).flatMap(b=>lineFiles(b.lines))]);
+const lineFiles=ls=>(ls||[]).flatMap(l=>[...(l.segments?l.segments.map(g=>g.file):[l.file]),...Object.values(l.follow||{}).flatMap(b=>lineFiles(b.lines))]);
 function pick(lines,key){if(!lines||!lines.length)return null;let i=Math.floor(Math.random()*lines.length);if(lines.length>1&&i===last[key])i=(i+1)%lines.length;last[key]=i;return lines[i]}
 const K={
   ready:fetch('commands.json').then(r=>r.json()).then(d=>{DATA=d}).catch(()=>{}),
   norm,
-  intent(text){const t=norm(text);for(const c of DATA.commands) if(c.phrases.some(p=>phraseHit(t,p))) return c;return null},
+  // ordered commands: first hit wins; group 'scenes': the longest matching trigger wins (routing v4)
+  intent(text,{dancing=false}={}){const t=norm(text);let best=null,bl=0;
+    for(const c of DATA.commands){const hits=c.phrases.filter(p=>phraseHit(t,p)&&(p!=='стоп.'||dancing));if(!hits.length)continue;
+      if(c.group!=='scenes')return c;const L=Math.max(...hits.map(p=>p.length));if(L>bl){bl=L;best=c}}
+    return best},
+  byId(id){return DATA.commands.find(c=>c.id===id)||null},
   match(text){const c=K.intent(text);return c?c.emotion:null},
   hasName(text){const t=norm(text);return DATA.name.some(n=>phraseHit(t,n))},
   stripName(text){let t=norm(text);for(const n of DATA.name){t=t.replace(new RegExp(' '+n.replace(/\s+/g,' ')+'[а-я]*','g'),' ')}return t.replace(/\s+/g,' ').trim()},
@@ -22,7 +27,7 @@ const K={
   branch(f,k){const b=f&&f[k];if(!b)return null;const l=pick(b.lines,'b:'+k+b.lines[0].file);return l&&parse(l,b.emotion,k,b.follow)},
   yesno(text){const t=norm(text);if((DATA.no||[]).some(p=>phraseHit(t,p)))return 'no';if((DATA.yes||[]).some(p=>phraseHit(t,p)))return 'yes';return null},
   sys(id){const s=DATA.system[id];if(!s)return null;const l=pick(s.lines,'sys:'+id);return l&&parse(l,s.emotion,id)},
-  allFiles(){return DATA.commands.flatMap(c=>lineFiles(c.lines).concat(Object.values(c.follow||{}).flatMap(b=>lineFiles(b.lines)))).concat(Object.values(DATA.system).flatMap(s=>lineFiles(s.lines)))},
+  allFiles(){return DATA.commands.flatMap(c=>lineFiles(c.lines).concat(Object.values(c.follow||{}).flatMap(b=>lineFiles(b.lines)))).concat(Object.values(DATA.system).flatMap(s=>lineFiles(s.lines))).concat(((DATA.dance||{}).beats||[]).map(b=>b.line.file)).concat(((DATA.photo||{}).countdown||[]).map(c=>c.file))},
   get data(){return DATA}
 };
 window.KarenCommands=K;

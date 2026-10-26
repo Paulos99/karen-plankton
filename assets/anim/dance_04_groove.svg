@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Карен — анимация">
+<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect width="960" height="540" fill="#08141D"/>
+<g opacity="0.11" stroke="#4B8D7A" stroke-width="2"><path d="M0 90H960M0 180H960M0 270H960M0 360H960M0 450H960M120 0V540M240 0V540M360 0V540M480 0V540M600 0V540M720 0V540M840 0V540"/></g>
+
+<g id="dancing-karen">
+<animateTransform attributeName="transform" type="translate" values="0 0;0 -14;0 4;0 -12;0 0" keyTimes="0;0.24;0.53;0.79;1" dur="5.6s" repeatCount="indefinite"/>
+ <g><animateTransform attributeName="transform" type="rotate" values="0 480 270;4 480 270;0 480 270;-4 480 270;0 480 270" dur="5.6s" repeatCount="indefinite"/>
+ <g fill="none" stroke="#BEFF31" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"><path d="M276 235Q338 173 403 235M553 235Q616 173 682 235"/><path d="M329 337Q480 453 632 337"/></g>
+ </g></g><g stroke="#BEFF31" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.5"><polyline points="40 460 130 460 165 450 197 475 230 460 275 460 305 446 340 475 370 460 420 460 450 445 480 480 510 460 560 460 590 450 620 470 655 460 700 460 730 445 765 475 800 460 920 460"><animate attributeName="opacity" values="0.14;0.68;0.14" dur="1.12s" repeatCount="indefinite"/></polyline></g>
+</svg>

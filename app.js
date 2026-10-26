@@ -44,7 +44,7 @@ function setState(s,holdMs){
 }
 function setMood(m){mood=(m&&!WAVE_STATES.has(m))?m:null;if(state==='speaking')setState('speaking')}
 function clearMood(){mood=null;moodTimers.forEach(clearTimeout);moodTimers=[]}
-window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),intent:t=>KarenCommands.intent(t),get lastLatency(){return lastLat},_voiceAt:0,get asr(){return ASR.state},handleText:(t)=>handleText(t,performance.now()),photo:()=>photoFlow(KarenCommands.line(KarenCommands.intent('фото')),null)};
+window.karen={setState,get state(){return state},get mood(){return mood},match:t=>KarenCommands.match(t),intent:t=>KarenCommands.intent(t),get lastLatency(){return lastLat},_voiceAt:0,get asr(){return ASR.state},handleText:(t)=>handleText(t,performance.now()),photo:()=>photoFlow(KarenCommands.line(KarenCommands.byId('photo')),null),get dance(){return dance}};
 
 // ---------- waveform ----------
 const cv=$('#wave'),cx=cv.getContext('2d');
@@ -134,13 +134,20 @@ function fakeVoice(text,signal){return new Promise(res=>{const ms=Math.min(6000,
 function backend(){return (cfg.endpoint&&cfg.token)?B.Cloud(cfg.endpoint,cfg.token):B.Demo}
 let history=[],lastTurn=0,lastLat=null;
 const sleep=(ms,sig)=>new Promise(r=>{const t=setTimeout(r,ms);sig&&sig.addEventListener('abort',()=>{clearTimeout(t);r()})});
-function newTurn(){stop(false);const a=new AbortController();busy=a;return a.signal}
+function newTurn(){stop(false);pauseDance();const a=new AbortController();busy=a;return a.signal}
 function showSubs(t){const s=$('#subs');s.hidden=!cfg.subs||!t;s.textContent=t}
-function stop(full=true){if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle');if(wake.wanted)setTimeout(ensureWake,600)}}
+function stop(full=true){fx(null);if(full)stopDance();if(listenOn)listenCancel=true;listenOn=false;clearMood();if(busy){busy.abort();busy=null}stopAudio();targetLevel=0;if(rec){rec.stop();rec=null}if(full){closeMic();closeCam();showSubs('');setState('idle');if(wake.wanted)setTimeout(ensureWake,600)}}
 function markLatency(t0){if(t0==null)return;lastLat=Math.round(window.karen._voiceAt-t0);log('задержка (конец речи → голос):',lastLat+' мс')}
 // play one prerecorded line with its emotion; resolves when done
 async function sayLine(l,sig,t0,{after=true}={}){
-  if(!l)return;log(`[локально] ${l.id} ${l.emotion}: ${l.text}`);
+  if(!l)return;
+  if(l.segments&&l.segments.length){ // v2.0 scenes: one clip per segment, own emotion, timed pauses, final hold
+    const S=l.segments;log(`[сцена] ${l.id}`);
+    for(let i=0;i<S.length;i++){const g=S[i];
+      await sayLine({id:l.id+'#'+i,file:g.file,text:g.text,emotion:g.emotion,steps:[]},sig,i?null:t0,{after:false});if(sig.aborted)return;
+      if(g.pause_after_ms&&i<S.length-1){mood=WAVE_STATES.has(g.emotion)?null:g.emotion;setState('speaking');await sleep(g.pause_after_ms,sig);if(sig.aborted)return}}
+    if(after){const e=S[S.length-1].emotion,h=S[S.length-1].hold_after_ms||1800;WAVE_STATES.has(e)?setState('idle'):setState(e,h)}
+    return}log(`[локально] ${l.id} ${l.emotion}: ${l.text}`);
   let buf=null;try{buf=await clip(l.file)}catch(e){log('audio:',e.message)}
   if(sig.aborted)return;
   clearMood();const st=l.steps||[];const first=st.length&&st[0].at<.05?st[0].emotion:l.emotion;
@@ -160,8 +167,11 @@ async function handleText(text,t0){
     if(kk){const b=KarenCommands.branch(f.f,kk);await sayLine(b,sig,t0,{after:!b.follow});if(sig.aborted)return;if(busy&&busy.signal===sig)busy=null;
       if(b.follow){follow={f:b.follow,until:Date.now()+15000};if(ASR.state==='ready'||(cfg.cloud&&backend().name==='cloud'))return listen();setState('idle')}return}}
   follow=null;
-  const it=KarenCommands.intent(text);
-  if(it&&it.id==='photo'){busy=null;return photoFlow(KarenCommands.line(it),t0)}
+  const it=KarenCommands.intent(text,{dancing:dance.on});
+  if(it&&it.mode==='dance_stop'){busy=null;const was=dance.on;stopDance();log(was?'танец остановлен':'стоп (танца нет)');setState('idle');return}
+  if(it&&it.mode==='photo'){busy=null;return photoFlow(KarenCommands.line(it),t0)}
+  if(it&&it.mode==='dance'){if(dance.on&&!dance.intro){busy=null;log('танец уже идёт');return}busy=null;return startDance(it,sig,t0)}
+  if(it&&it.mode==='love_declaration'){const l=KarenCommands.line(it);fx(it.visual);await sayLine(l,sig,t0);fx(null);if(busy&&busy.signal===sig)busy=null;return}
   if(it){const l=KarenCommands.line(it);await sayLine(l,sig,t0,{after:!l.follow});if(sig.aborted)return;if(busy&&busy.signal===sig)busy=null;
     if(l.follow){follow={f:l.follow,until:Date.now()+15000};if(ASR.state==='ready'||(cfg.cloud&&backend().name==='cloud'))return listen();setState('idle')}return}
   if(KarenCommands.hasName(text)&&KarenCommands.stripName(text).length<3){ // only «Карен» → short ack, then listen for the phrase
@@ -255,6 +265,7 @@ function grammar(){const d=KarenCommands.data;return JSON.stringify([...new Set(
 const VAD={silence:450,max:8000,noSpeech:5000};
 async function listen(){
   if(listenOn){listenOn=false;return} // second tap = «я договорил»
+  pauseDance();
   stop(false);ac();warmDecode();
   try{await openMic()}catch(e){log('mic error:',e.name);setState('error',1500);return}
   const offline=ASR.state==='ready',cloud=!offline&&cfg.cloud&&backend().name==='cloud';
@@ -349,9 +360,43 @@ renderWake();
 $('#stage').addEventListener('pointerdown',e=>{if(document.body.classList.contains('cam'))return;e.preventDefault();listen()});
 addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&$('#menu').hidden)listen()});
 
+// ---------- v2.0: infinite dance (logic/dance.json) + one-shot SVG layers ----------
+const svgCache={};
+function svgFile(u){return svgCache[u]||(svgCache[u]=fetch(u).then(r=>r.text()).then(t=>t.replace(/width="960" height="540"/,'preserveAspectRatio="xMidYMid meet"')).catch(()=>''))}
+const reduceMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+async function fx(u){const el=$('#fxLayer');if(!u){el.hidden=true;el.innerHTML='';return}el.innerHTML=await svgFile(u);el.hidden=false;if(reduceMotion())el.querySelector('svg')?.pauseAnimations?.()}
+const dance={on:false,intro:false,paused:true,pos:0,cycle:1,beat:null,spoken:new Set(),lastSpeech:-1e9,tick:null,last:0,ctl:null,idleSince:0};
+async function startDance(it,sig,t0){
+  dance.on=true;dance.intro=true;dance.pos=0;dance.cycle=1;dance.spoken=new Set();dance.lastSpeech=-1e9;log('танец: вступление');
+  await sayLine(KarenCommands.line(it),sig,t0,{after:false});if(sig.aborted||!dance.on)return;
+  setState('smile');await sleep(((KarenCommands.data.dance||{}).intro_hold||2.5)*1000,sig);if(sig.aborted||!dance.on)return;
+  dance.intro=false;if(busy&&busy.signal===sig)busy=null;setState('idle');resumeDance();
+}
+function setBeatVisual(b){if(dance.beat===b.id)return;dance.beat=b.id;svgFile(b.svg).then(t=>{if(dance.beat!==b.id||dance.paused)return;const el=$('#danceLayer');el.innerHTML=t;if(reduceMotion())el.querySelector('svg')?.pauseAnimations?.()})}
+function resumeDance(){if(!dance.on||!dance.paused)return;dance.paused=false;dance.beat=null;dance.last=performance.now();$('#danceLayer').hidden=false;document.body.classList.add('dancing');
+  log('танец: цикл',dance.cycle,'позиция',Math.round(dance.pos)+' с');dance.tick=setInterval(danceTick,200);danceTick()}
+function pauseDance(){if(dance.paused)return;dance.paused=true;clearInterval(dance.tick);dance.tick=null;if(dance.ctl){dance.ctl.abort();dance.ctl=null}
+  const el=$('#danceLayer');el.hidden=true;el.innerHTML='';dance.beat=null;document.body.classList.remove('dancing')}
+function stopDance(){if(dance.intro&&busy)busy.abort();dance.on=false;dance.intro=false;pauseDance()}
+function danceTick(){
+  const D=KarenCommands.data.dance;if(!D||dance.paused)return;const now=performance.now();dance.pos+=(now-dance.last)/1000;dance.last=now;
+  if(dance.pos>=D.cycle){dance.pos-=D.cycle;dance.cycle++;dance.spoken=new Set()}
+  const b=D.beats.find(x=>dance.pos>=x.at&&dance.pos<x.at+x.dur)||D.beats[0];setBeatVisual(b);
+  const c=dance.cycle,list=c<=3?D.schedule[String(c)]:(c%3===0?D.schedule.every3:[]);
+  for(const x of D.beats){if(dance.spoken.has(x.id)||dance.pos<x.speech_at||!list.includes(x.id))continue;
+    if(dance.pos-x.speech_at>8){dance.spoken.add(x.id);continue} // too late → skip (queue at most one, ≤8 s)
+    if(playing||listenOn||dance.ctl||(c>1&&now-dance.lastSpeech<D.min_gap*1000))continue;
+    dance.spoken.add(x.id);dance.lastSpeech=now;const ctl=new AbortController();dance.ctl=ctl;log('танец: реплика',x.id);
+    clip(x.line.file).then(buf=>ctl.signal.aborted?null:playBuf(buf,ctl.signal)).catch(e=>log('dance audio:',e.message)).finally(()=>{if(dance.ctl===ctl)dance.ctl=null});break}
+}
+// resume the dance after any scene / photo / listen once Karen is quiet and idle again (no second intro)
+setInterval(()=>{if(!dance.on||!dance.paused||dance.intro){dance.idleSince=0;return}
+  const quiet=!busy&&!listenOn&&!playing&&state==='idle'&&!document.body.classList.contains('cam')&&$('#menu').hidden;
+  if(!quiet){dance.idleSince=0;return}if(!dance.idleSince)dance.idleSince=Date.now();else if(Date.now()-dance.idleSince>700)resumeDance()},150);
+
 // ---------- «Карен, сделай фото»: front camera, 5 s countdown, frame «День Маркетолога StP 2026» ----------
 let camStream=null,camTimer=null;
-function closeCam(){clearTimeout(camTimer);if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}document.body.classList.remove('cam');const c=$('#cam');c.hidden=true;c.dataset.step=''}
+function closeCam(){clearTimeout(camTimer);const co=$('#camOverlay');if(co)co.innerHTML='';if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}document.body.classList.remove('cam');const c=$('#cam');c.hidden=true;c.dataset.step=''}
 function drawFrame(g,W,H){
   const u=Math.min(W,H)/100;g.save();
   // thin white inner border + subtle dark strip with caption — minimal, neutral
@@ -374,8 +419,13 @@ async function photoFlow(line,t0){
   v.srcObject=camStream;try{await v.play()}catch{}
   document.body.classList.add('cam');cam.hidden=false;cam.dataset.step='count';res.hidden=true;
   const ov=$('#camFrame');ov.width=innerWidth*(devicePixelRatio||1);ov.height=innerHeight*(devicePixelRatio||1);const og=ov.getContext('2d');og.clearRect(0,0,ov.width,ov.height);drawFrame(og,ov.width,ov.height);
-  for(let i=5;i>0;i--){cd.textContent=i;cd.classList.remove('tick');void cd.offsetWidth;cd.classList.add('tick');await sleep(1000,sig);if(sig.aborted){closeCam();return}}
-  cd.textContent='';cam.dataset.step='flash';
+  await voice;if(sig.aborted){closeCam();return}
+  const P=KarenCommands.data.photo||{},CD=P.countdown||[],secs=P.seconds||5,co=$('#camOverlay');
+  for(let i=secs;i>0;i--){
+    if(i<=3&&P.overlay){cd.textContent='';if(i===3)co.innerHTML=await svgFile(P.overlay);const c=CD[3-i];if(c)clip(c.file).then(b=>{if(!sig.aborted)playBuf(b,sig)}).catch(()=>{})}
+    else{cd.textContent=i;cd.classList.remove('tick');void cd.offsetWidth;cd.classList.add('tick')}
+    await sleep(1000,sig);if(sig.aborted){closeCam();return}}
+  cd.textContent='';co.innerHTML='';cam.dataset.step='flash';
   const W=v.videoWidth||1280,H=v.videoHeight||720,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
   g.save();g.translate(W,0);g.scale(-1,1);g.drawImage(v,0,0,W,H);g.restore();drawFrame(g,W,H); // mirrored like the preview (selfie)
   camStream.getTracks().forEach(t=>t.stop());camStream=null;stopAudio();
@@ -387,8 +437,8 @@ async function photoFlow(line,t0){
   $('#camShare').hidden=!(navigator.canShare&&navigator.canShare({files:[file]}));
   $('#camShare').onclick=async ev=>{ev.stopPropagation();try{await navigator.share({files:[file],title:'День Маркетолога StP 2026'})}catch(e){log('share:',e.name)}};
   $('#camDone').onclick=ev=>{ev.stopPropagation();closeCam();setState('idle')};
-  busy=null;const s2=newTurn();busy=null;sayLine(KarenCommands.sys('photo_done'),s2,null,{after:false}).then(()=>{if(!s2.aborted&&state==='speaking')setState('proud')});
-  camTimer=setTimeout(()=>{closeCam();setState('idle')},45000);
+  busy=null;const s2=newTurn();busy=null;sayLine(KarenCommands.sys('photo_done'),s2,null,{after:false}).then(()=>{if(!s2.aborted&&state==='speaking')setState('proud',3000)});
+  camTimer=setTimeout(()=>{closeCam();setState('idle')},dance.on?9000:45000); // dancing → back to the dance after the photo
 }
 
 // ---------- hidden menu: 2 s long-press top-right ----------
@@ -403,7 +453,7 @@ const acts={
   close:()=>$('#menu').hidden=true,
   stop:()=>{stop(true);log('STOP')},
   fullscreen:async()=>{try{await document.documentElement.requestFullscreen({navigationUI:'hide'});await screen.orientation?.lock?.('landscape')}catch(e){log('fullscreen:',e.message)}},
-  photo:()=>{$('#menu').hidden=true;photoFlow(KarenCommands.line(KarenCommands.intent('фото')),null)},
+  photo:()=>{$('#menu').hidden=true;photoFlow(KarenCommands.line(KarenCommands.byId('photo')),null)},
   send:()=>{const t=$('#debugText').value.trim();if(t){$('#menu').hidden=true;handleText(t,performance.now())}},
   mictest:async()=>{try{await openMic();const m=$('#micMeter'),end=Date.now()+5000;(function l(){m.value=micAnalyser?rms(micAnalyser):0;if(Date.now()<end)requestAnimationFrame(l);else if(!wake.wanted)closeMic()})()}catch(e){log('mic test:',e.name)}},
   health:async()=>{try{const h=await backend().health();log('health:',JSON.stringify(h))}catch(e){log('health failed:',e.message)}},
@@ -414,11 +464,11 @@ bind('#endpoint','endpoint');bind('#token','token');bind('#cloudToggle','cloud',
 bind('#llmToggle','llm','checked',Boolean);
 $('#endpoint').addEventListener('change',e=>{if(/api-key|iam|token=|[?&]key=/i.test(e.target.value)){e.target.value='';cfg.endpoint='';SS('endpoint','');log('URL с ключом отклонён')}});
 
-const CMD_TITLE={duel:'Дуэль: кто сегодня главный маркетолог (двое игроков, да/нет)',rateme:'Оцени меня (1–10 с сарказмом)',liedetector:'Детектор лжи («детектор лжи», потом любая фраза)',toast:'Тост ко Дню маркетолога («тост», «поднимем»)',advice:'Анти-мотивация («совет дня», «мотивация», «поддержи меня»)',villain:'Режим злодея («режим злодея», «злой смех»)',slogan:'Слоган для гостя («придумай слоган», «реклама»)',rps:'Камень, ножницы, бумага (потом назовите выбор)',horoscope:'Гороскоп маркетолога («гороскоп»)',dance:'Танец («потанцуй», «танцуй»)',worldplan:'План захвата мира («план захвата мира»)',formula:'Секретная формула («формула», «секретный рецепт»)',reboot:'Фейковая перезагрузка с ошибкой («перезагрузка»)',marketer:'Комплимент-прожарка маркетологам («комплимент маркетологам»)',fortune:'Предсказание («предсказание», «моё будущее»)',quiz:'Викторина да/нет («угадай», «давай поиграем») — затем ответьте «да» или «нет»',jealous:'Сцена ревности («Алиса», «другая нейросеть», «ревнуешь»)',lullaby:'Колыбельная («спой колыбельную», «спокойной ночи»)',photo:'Фото с таймером («сделай фото»)',love:'«Я люблю тебя»',joke:'Шутка',angry:'Грубость («ты глупая»)',proud:'Комплимент Карен («ты умница»)',sad:'Утешение («всё пропало»)',suspicious:'Новый план',annoyed:'«Хватит»',confused:'«Не понял»',error:'«Ошибка», «сломалась»',hello:'Приветствие',bye:'Прощание',thanks:'Спасибо',howareyou:'«Как дела»',whoareyou:'«Кто ты»',whatdoing:'«Что делаешь»',plankton:'Про Планктона',party:'Праздник, тост'};
+const CMD_TITLE={dance_stop:'Остановить танец («Карен, стоп», «хватит танцевать»)',photo:'Фото с таймером 5 с («сделай фото», «селфи»)',love_declaration:'Признание («я тебя люблю»)',love:'«Ты меня любишь?»',dance:'Бесконечный танец («потанцуем», «танцуй»)',hello:'Знакомство («привет», «кто ты»)',plankton:'Про Планктона',worldplan:'План захвата мира',smarter:'Кто умнее / кто главный',marketer:'Про маркетологов',jealous:'Ревность («Алиса», «другая нейросеть»)',rateme:'Оцени меня',reboot:'Перезагрузка'};
 KarenCommands.ready.then(()=>{const d=KarenCommands.data;$('#cmdList').innerHTML='<p>Коснитесь экрана и скажите фразу (можно с «Карен, …»).</p>'+d.commands.map(c=>`<p><b>${CMD_TITLE[c.id]||c.id}</b><br><small>${c.phrases.map(p=>p.replace(/\.$/,'')).join(', ')} · ${c.lines.length} вар.</small></p>`).join('')});
 // idle -> sleep after 3 min inactivity
 let lastAct=Date.now();addEventListener('pointerdown',()=>{lastAct=Date.now();if(state==='sleep')setState('idle')});
-setInterval(()=>{if(state==='idle'&&Date.now()-lastAct>180e3)setState('sleep')},5000);
+setInterval(()=>{if(state==='idle'&&!dance.on&&Date.now()-lastAct>180e3)setState('sleep')},5000);
 
 // boot: reboot -> idle
 try{indexedDB.deleteDatabase("/vosk")}catch{} // v1.4 left a ~90 MB IndexedDB copy of the model; we keep only the Cache Storage tar now

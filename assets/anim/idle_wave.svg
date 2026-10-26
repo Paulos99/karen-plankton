@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Карен — анимация">
+<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect width="960" height="540" fill="#08141D"/>
+<g opacity="0.11" stroke="#4B8D7A" stroke-width="2"><path d="M0 90H960M0 180H960M0 270H960M0 360H960M0 450H960M120 0V540M240 0V540M360 0V540M480 0V540M600 0V540M720 0V540M840 0V540"/></g>
+<g stroke="#BEFF31" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#glow)"><polyline points="110,270 200,270 278,269 368,271 455,270 540,270 640,270 738,270 850,270"><animate attributeName="points" dur="4.6s" repeatCount="indefinite" values="110,270 200,270 278,269 368,271 455,270 540,270 640,270 738,270 850,270;110,270 200,270 278,250 368,283 455,268 540,286 640,259 738,270 850,270;110,270 200,270 278,269 368,271 455,270 540,270 640,270 738,270 850,270"/></polyline></g></svg>

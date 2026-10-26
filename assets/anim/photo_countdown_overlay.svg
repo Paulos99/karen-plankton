@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Обратный отсчёт фото">
+<defs><filter id="shine"><feGaussianBlur stdDeviation="5" result="f"/><feMerge><feMergeNode in="f"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<g font-family="Arial,sans-serif" font-size="220" font-weight="bold" text-anchor="middle" fill="#BEFF31" filter="url(#shine)">
+<text x="480" y="335" opacity="0">3<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.28;0.33;1" dur="3s" fill="freeze"/></text>
+<text x="480" y="335" opacity="0">2<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.32;0.34;0.62;0.66;1" dur="3s" fill="freeze"/></text>
+<text x="480" y="335" opacity="0">1<animate attributeName="opacity" values="0;0;0;0;1;1" keyTimes="0;0.64;0.66;0.67;0.99;1" dur="3s" fill="freeze"/></text>
+</g></svg>
