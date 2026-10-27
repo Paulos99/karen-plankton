@@ -95,17 +95,30 @@ requestAnimationFrame(draw);
 let actx,micStream,micAnalyser,playing=null;
 function ac(){actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx}
 function rms(an){const a=new Float32Array(an.fftSize);an.getFloatTimeDomainData(a);let s=0;for(const v of a)s+=v*v;return Math.min(1,Math.sqrt(s/a.length)*4)}
+// v2.5 mic chain (tablet sits in a cardboard box): getUserMedia (AEC+NS+AGC from Android) → highpass 100 Hz → lowpass 5 kHz →
+// user gain (default 3×) → compressor (levels) → limiter (no clipping) → every consumer (vosk wake/listen, recorder, level meter).
+// AEC stays on so Karen's own speaker does not trigger herself; AGC+NS on because Android's AGC lifts quiet voices; our gain adds on top.
+const MIC_GAINS=[1,1.5,2,2.5,3,4,5,6.5,8,10],MIC_DEF=4;
+let micIdx=Math.max(0,Math.min(9,Math.round(+(LS('micIdx')??MIC_DEF)))),micChain=null;
 async function openMic(){
   if(micStream) return micStream;
   micStream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-  const src=ac().createMediaStreamSource(micStream);micAnalyser=ac().createAnalyser();micAnalyser.fftSize=1024;src.connect(micAnalyser);
+  const ctx=ac(),src=ctx.createMediaStreamSource(micStream),hp=ctx.createBiquadFilter(),lp=ctx.createBiquadFilter(),gn=ctx.createGain(),cp=ctx.createDynamicsCompressor(),lim=ctx.createDynamicsCompressor();
+  hp.type='highpass';hp.frequency.value=100;hp.Q.value=.7;lp.type='lowpass';lp.frequency.value=5000;lp.Q.value=.7;gn.gain.value=MIC_GAINS[micIdx];
+  cp.threshold.value=-26;cp.knee.value=18;cp.ratio.value=4;cp.attack.value=.005;cp.release.value=.25;
+  lim.threshold.value=-3;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.001;lim.release.value=.08;
+  src.connect(hp);hp.connect(lp);lp.connect(gn);gn.connect(cp);cp.connect(lim);micAnalyser=ctx.createAnalyser();micAnalyser.fftSize=1024;lim.connect(micAnalyser);
+  micChain={src,gn,out:lim};
   return micStream;
 }
-function closeMic(){if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;micAnalyser=null}}
+// processed mic tap for a consumer (replaces createMediaStreamSource(micStream)); disconnect() detaches only this tap
+function micTap(){const ctx=ac(),t=ctx.createGain(),out=micChain.out,d=t.disconnect.bind(t);out.connect(t);t.disconnect=(...a)=>{try{out.disconnect(t)}catch{}return d(...a)};return t}
+function setMicIdx(i){micIdx=Math.max(0,Math.min(MIC_GAINS.length-1,Math.round(i)));SS('micIdx',micIdx);if(micChain)micChain.gn.gain.value=MIC_GAINS[micIdx];const r=$('#micGain');if(r)r.value=micIdx;const l=$('#micGainVal');if(l)l.textContent='×'+MIC_GAINS[micIdx];showVol(micIdx+1,'🎤');log('чувствительность микрофона',micIdx+1+'/10 (×'+MIC_GAINS[micIdx]+')');return micIdx}
+function closeMic(){if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;micAnalyser=null;try{micChain&&micChain.src.disconnect()}catch{}micChain=null}}
 // PCM recorder: 16 kHz mono 16-bit LPCM (SpeechKit v2 compatible), hard-capped 12 s (~384 KB < 1 MB)
 let rec=null;
 function startRecord(){
-  const ctx=ac(),src=ctx.createMediaStreamSource(micStream),proc=ctx.createScriptProcessor(4096,1,1),chunks=[],rate=ctx.sampleRate;
+  const ctx=ac(),src=micTap(),proc=ctx.createScriptProcessor(4096,1,1),chunks=[],rate=ctx.sampleRate;
   proc.onaudioprocess=e=>{chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)))};
   src.connect(proc);proc.connect(ctx.destination);
   rec={stop(){proc.disconnect();src.disconnect();const len=chunks.reduce((a,c)=>a+c.length,0),ratio=rate/16000,out=new Int16Array(Math.min(Math.floor(len/ratio),16000*12));
@@ -171,7 +184,7 @@ function volTarget(text){const t=KarenCommands.norm(text),has=w=>t.includes(' '+
   const n=t.trim().split(' ').map(w=>NUMW[w]).filter(x=>x!=null).pop();if(n!=null)return{v:n,k:n===10?'vol_max':n===0?'mute':'vol_set'};
   return{v:cur,k:'vol_set'}}
 let volT=0;
-function showVol(n){const el=$('#volBar');el.innerHTML=`<b>${n===0?'🔇':'🔊'}</b>`+Array.from({length:10},(_,i)=>`<i class="${i<n?'on':''}"></i>`).join('')+`<span>${n*10}%</span>`;el.hidden=false;clearTimeout(volT);volT=setTimeout(()=>el.hidden=true,1500)}
+function showVol(n,icon){const el=$('#volBar');el.innerHTML=`<b>${icon||(n===0?'🔇':'🔊')}</b>`+Array.from({length:10},(_,i)=>`<i class="${i<n?'on':''}"></i>`).join('')+`<span>${icon?n+'/10':n*10+'%'}</span>`;el.hidden=false;clearTimeout(volT);volT=setTimeout(()=>el.hidden=true,1500)}
 function setVolume(n){n=Math.max(0,Math.min(10,Math.round(n)));const cur=Math.round(cfg.volume*10);if(n===0&&cur>0)SS('volPrev',cur);cfg.volume=n/10;SS('volume',cfg.volume);const r=$('#volume');if(r)r.value=cfg.volume;showVol(n);log('громкость',n*10+'%');return n}
 async function volumeFlow(text,t0){const {v,k}=volTarget(text);const n=setVolume(v);
   if(n===0){if(!dance.on){const p=state;setState('sleep',1500)}return}
@@ -179,8 +192,14 @@ async function volumeFlow(text,t0){const {v,k}=volTarget(text);const n=setVolume
   if(dance.on){clip(l.file).then(b=>playBuf(b,new AbortController().signal)).catch(()=>{});return} // keep the dance running
   const sig=newTurn();await sayLine(l,sig,t0);if(busy&&busy.signal===sig)busy=null}
 
+function micTarget(text){const t=KarenCommands.norm(text),h=w=>t.includes(' '+w);
+  if(h('максим'))return{i:9,k:'mic_max'};if(h('минимум'))return{i:0,k:'mic_min'};if(h('сбрось'))return{i:MIC_DEF,k:'mic_reset'};
+  if(h('меньше')||h('ниже')||h('понизь')||h('уменьши')||h('убавь'))return{i:micIdx-1,k:micIdx<=0?'mic_min':'mic_down'};
+  return{i:micIdx+1,k:micIdx>=9?'mic_max':'mic_up'}}
+async function micFlow(text,t0){const {i,k}=micTarget(text);setMicIdx(i);const sig=newTurn();log('фраза:',text);await sayLine(KarenCommands.sys(k),sig,t0);if(busy&&busy.signal===sig)busy=null}
 async function handleText(text,t0){lastAct=Date.now();if(state==='sleep')setState('idle');
   {const vi=KarenCommands.intent(text,{dancing:dance.on});if(vi&&vi.mode==='volume'){log('фраза:',text);return volumeFlow(text,t0)}}
+  {const mi=KarenCommands.intent(text,{dancing:dance.on});if(mi&&mi.mode==='mic'){lastAct=Date.now();return micFlow(text,t0)}}
   const wasPosing=posing;const sig=newTurn();log('фраза:',text);
   if(follow&&Date.now()<follow.until){const f=follow;follow=null;const k=KarenCommands.yesno(text); // answer to Karen's yes/no question
     const kk=(k&&f.f[k])?k:(f.f.any?'any':null);
@@ -299,7 +318,7 @@ async function listen(){
   if(offline){
     r=new ASR.model.KaldiRecognizer(16000,grammar());
     r.on('partialresult',e=>{partial=e.result.partial||partial});r.on('result',e=>{final=e.result.text||''});
-    const ctx=ac();src=ctx.createMediaStreamSource(micStream);proc=ctx.createScriptProcessor(2048,1,1);
+    const ctx=ac();src=micTap();proc=ctx.createScriptProcessor(2048,1,1);
     proc.onaudioprocess=e=>{try{r.acceptWaveformFloat(new Float32Array(e.inputBuffer.getChannelData(0)),ctx.sampleRate)}catch{}};src.connect(proc);proc.connect(ctx.destination);
   } else startRecord();
   const tS=performance.now();let spoke=false,lastVoice=tS,floor=.02,n=0;
@@ -337,7 +356,7 @@ async function processClip(blob,tEnd){
 // ---------- hands-free wake word «Карен» on the same offline vosk model (no Google, no beep) ----------
 // A second, always-on KaldiRecognizer is fed from the open mic only while Karen is idle (not speaking/listening/camera),
 // resumes WAKE_RESUME ms after her audio ends, and fires only if a name word is recognised with conf ≥ WAKE_CONF + cooldown.
-const WAKE_CONF=.6,WAKE_COOLDOWN=1500,WAKE_RESUME=300;
+const WAKE_CONF=.5,WAKE_COOLDOWN=1500,WAKE_RESUME=300;
 const wake={wanted:false,rec:null,proc:null,src:null,muteUntil:0,dirty:false,last:0,lastVoice:0,lock:null,count:0};
 window.karen.wake=wake;
 function wakeMute(){wake.muteUntil=performance.now()+WAKE_RESUME;wake.dirty=true}
@@ -353,7 +372,7 @@ async function ensureWake(){
   keepAwake();
   if(ASR.state!=='ready'){if(ASR.state==='none'||ASR.state==='error')loadAsr(true);return} // loadAsr calls ensureWake when ready
   if(wake.proc)return;
-  const ctx=ac();wake.src=ctx.createMediaStreamSource(micStream);wake.proc=ctx.createScriptProcessor(2048,1,1);newWakeRec();
+  const ctx=ac();wake.src=micTap();wake.proc=ctx.createScriptProcessor(2048,1,1);newWakeRec();
   wake.proc.onaudioprocess=e=>{const d=e.inputBuffer.getChannelData(0);let q=0;for(let i=0;i<d.length;i+=4)q+=d[i]*d[i];const v=Math.min(1,Math.sqrt(q/(d.length/4))*4);
     micLvl+=(v-micLvl)*.3;const now=performance.now();if(v>.06)wake.lastVoice=now;
     if(wakeBlocked()){wake.dirty=true;micLvl*=.5;return}
@@ -512,7 +531,9 @@ const acts={
 };
 $('#menu').addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(a)acts[a.dataset.act]()});
 const bind=(id,key,prop='value',cast=String)=>{const el=$(id);el[prop]=cfg[key];el.addEventListener('change',()=>{cfg[key]=cast(el[prop]);SS(key,prop==='checked'?(el[prop]?'1':'0'):el[prop]);setState(state)})};
-bind('#endpoint','endpoint');bind('#token','token');bind('#cloudToggle','cloud','checked',Boolean);if(location.hash==='#advanced')$('#adv').hidden=false;bind('#volume','volume','value',Number);bind('#role','role');bind('#subsToggle','subs','checked',Boolean);
+bind('#endpoint','endpoint');bind('#token','token');bind('#cloudToggle','cloud','checked',Boolean);if(location.hash==='#advanced')$('#adv').hidden=false;bind('#volume','volume','value',Number);{const r=$('#micGain');r.value=micIdx;$('#micGainVal').textContent='×'+MIC_GAINS[micIdx];r.addEventListener('input',()=>setMicIdx(+r.value))}
+setInterval(()=>{if(!$('#menu').hidden){const m=$('#micMeter');if(m)m.value=micAnalyser?rms(micAnalyser):0}},100);
+window.karen.setMicIdx=setMicIdx;window.karen.micGain=()=>MIC_GAINS[micIdx];window.karen.micChain=()=>micChain;bind('#role','role');bind('#subsToggle','subs','checked',Boolean);
 bind('#llmToggle','llm','checked',Boolean);
 $('#endpoint').addEventListener('change',e=>{if(/api-key|iam|token=|[?&]key=/i.test(e.target.value)){e.target.value='';cfg.endpoint='';SS('endpoint','');log('URL с ключом отклонён')}});
 
