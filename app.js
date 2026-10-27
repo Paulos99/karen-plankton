@@ -459,7 +459,7 @@ function drawFrame(g,W,H){
   if('letterSpacing' in g)g.letterSpacing=`${.15*u}px`;
   g.fillText('День Маркетолога StP 2026',W/2,H-m-6.2*u);
   g.font=`400 ${2.4*u}px "Helvetica Neue",Roboto,"Segoe UI",system-ui,sans-serif`;g.fillStyle='rgba(255,255,255,.75)';if('letterSpacing' in g)g.letterSpacing=`${.5*u}px`;
-  g.fillText('25 · 10 · 2026',W/2,H-m-2.4*u);
+  {const d=new Date(),z=n=>String(n).padStart(2,'0');g.fillText(z(d.getDate())+' · '+z(d.getMonth()+1)+' · '+d.getFullYear(),W/2,H-m-2.4*u);}
   g.restore();
 }
 async function photoFlow(line,t0){
