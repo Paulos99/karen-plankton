@@ -179,7 +179,7 @@ async function volumeFlow(text,t0){const {v,k}=volTarget(text);const n=setVolume
   if(dance.on){clip(l.file).then(b=>playBuf(b,new AbortController().signal)).catch(()=>{});return} // keep the dance running
   const sig=newTurn();await sayLine(l,sig,t0);if(busy&&busy.signal===sig)busy=null}
 
-async function handleText(text,t0){
+async function handleText(text,t0){lastAct=Date.now();if(state==='sleep')setState('idle');
   {const vi=KarenCommands.intent(text,{dancing:dance.on});if(vi&&vi.mode==='volume'){log('фраза:',text);return volumeFlow(text,t0)}}
   const wasPosing=posing;const sig=newTurn();log('фраза:',text);
   if(follow&&Date.now()<follow.until){const f=follow;follow=null;const k=KarenCommands.yesno(text); // answer to Karen's yes/no question
@@ -390,12 +390,14 @@ function svgFile(u){return svgCache[u]||(svgCache[u]=fetch(u).then(r=>r.text()).
 const reduceMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 // v2.2 love reaction on the shared canvas (dance.js drawLove): phases follow mood/state of the scene
 let loving=false;
-// v2.3 greet colleagues: 3.4 s silent scan intro, then 3 segments (flash on seg 1), DB banner, back to idle
+// v2.4 greet colleagues: 3.4 s scan intro on canvas, then speech like any other scene (plain green waveform, no face)
 let greeting=false,greetPh={seg:-1};
-async function greetFlow(it,sig,t0){const l=KarenCommands.line(it);greeting=true;greetPh={seg:-1};$('#danceLayer').hidden=false;DR.greet(()=>greetPh);setState('idle');
-  await sleep(3400,sig);if(!sig.aborted)await sayLine(l,sig,t0,{after:false,onSeg:i=>{greetPh={seg:i}}});
-  if(!sig.aborted){greetPh={seg:3};setState('sarcasm',2800);await sleep(2600,sig)}
-  greeting=false;await DR.greetEnd();if(!dance.on&&!posing&&!loving){DR.stop();$('#danceLayer').hidden=true}if(busy&&busy.signal===sig)busy=null;if(!sig.aborted)setState('idle')}
+async function greetFlow(it,sig,t0){const l0=KarenCommands.line(it);greeting=true;greetPh={seg:-1};$('#danceLayer').hidden=false;DR.greet();setState('idle');
+  await sleep(3400,sig);greeting=false;await DR.greetEnd();if(!dance.on&&!posing&&!loving){DR.stop();$('#danceLayer').hidden=true}
+  if(sig.aborted){return}
+  const l={...l0,segments:l0.segments.map(g=>({...g,emotion:'speaking'}))};
+  await sayLine(l,sig,t0,{after:false,onSeg:i=>{greetPh={seg:i}}});
+  if(busy&&busy.signal===sig)busy=null;if(!sig.aborted){greetPh={seg:3};setState('idle')}}
 window.karen.greetPh=()=>greetPh;
 function loveOn(){loving=true;$('#danceLayer').hidden=false;DR.love(()=>mood||state)}
 async function loveOff(){if(!loving)return;await DR.loveEnd();if(!loving)return;loving=false;if(!dance.on&&!posing){DR.stop();$('#danceLayer').hidden=true}}
@@ -516,9 +518,10 @@ $('#endpoint').addEventListener('change',e=>{if(/api-key|iam|token=|[?&]key=/i.t
 
 const CMD_TITLE={dance_stop:'Остановить танец («Карен, стоп», «хватит танцевать»)',photo:'Фото с таймером 5 с («сделай фото», «селфи»)',love_declaration:'Признание («я тебя люблю»)',love:'«Ты меня любишь?»',dance:'Бесконечный танец («потанцуем», «танцуй»)',hello:'Знакомство («привет», «кто ты»)',plankton:'Про Планктона',worldplan:'План захвата мира',smarter:'Кто умнее / кто главный',marketer:'Про маркетологов',jealous:'Ревность («Алиса», «другая нейросеть»)',rateme:'Оцени меня',reboot:'Перезагрузка'};
 KarenCommands.ready.then(()=>{const d=KarenCommands.data;$('#cmdList').innerHTML='<p>Коснитесь экрана и скажите фразу (можно с «Карен, …»).</p>'+d.commands.map(c=>`<p><b>${CMD_TITLE[c.id]||c.id}</b><br><small>${c.phrases.map(p=>p.replace(/\.$/,'')).join(', ')} · ${c.lines.length} вар.</small></p>`).join('')});
-// idle -> sleep after 3 min inactivity
-let lastAct=Date.now();addEventListener('pointerdown',()=>{lastAct=Date.now();if(state==='sleep')setState('idle')});
-setInterval(()=>{if(state==='idle'&&!dance.on&&Date.now()-lastAct>180e3)setState('sleep')},5000);
+// idle -> sleep after 5 min without ANY activity (touch, voice, speech, dance, pose, greet); was 3 min counted from the last tap only
+let lastAct=Date.now();const SLEEP_MS=300e3;window.karen.touch=()=>{lastAct=Date.now()};window.karen._idleAgo=ms=>{lastAct=Date.now()-ms};
+addEventListener('pointerdown',()=>{lastAct=Date.now();if(state==='sleep')setState('idle')});
+setInterval(()=>{if(state!=='idle'||dance.on||posing||loving||greeting||busy||listenOn||(typeof follow!=='undefined'&&follow&&Date.now()<follow.until)){lastAct=Date.now();return}if(Date.now()-lastAct>SLEEP_MS)setState('sleep')},5000);
 
 // boot: reboot -> idle
 try{indexedDB.deleteDatabase("/vosk")}catch{} // v1.4 left a ~90 MB IndexedDB copy of the model; we keep only the Cache Storage tar now

@@ -136,40 +136,22 @@ function make(cv,{level=()=>0,mic=()=>0,reduce=()=>false}={}){
     g.globalAlpha=A*blush*.45;g.fillStyle='#FE5362';for(const sx of[-1,1]){g.beginPath();g.ellipse(sx*215,40,62,26,0,0,TAU);g.fill()}g.globalAlpha=A*blush*.25;for(const sx of[-1,1])for(let i=0;i<3;i++){g.fillRect(sx*215-30+i*22,32,6,16)}g.globalAlpha=1;
     drawF(lf.cur,A*sm);
     if(loveOut&&outK<=0){api.stop()}}
-  // ---- v2.3 greet colleagues: scan intro → sly face + speech waveform → red flash → pixel trophy → «ДОБАВЛЕНО В БАЗУ ДАННЫХ» ----
-  let grT=0,grOut=0,grPh=()=>({seg:-1,t:0}),grSeg=-9,grSegT=0,grFace={k:0},flashT=-9;
-  const RED='#FE5362',GOLD='#FFE14D';
+  // ---- greet colleagues (v2.4): only the opening scan — dim + red scan line + «СКАНИРОВАНИЕ КОСТЮМОВ…» progress; speech then looks like any other scene ----
+  let grT=0,grOut=0;
+  const RED='#FE5362';
   function txt(s,x,y,sz,c,a=1,al='center'){g.globalAlpha=a;g.font=`700 ${sz}px ui-monospace,Menlo,Consolas,monospace`;g.textAlign=al;g.textBaseline='middle';g.fillStyle=c;g.fillText(s,x,y);g.globalAlpha=1}
-  const TROPHY=['.XXXXXXX.','XX.XXX.XX','X..XXX..X','.X.XXX.X.','...XXX...','....X....','....X....','..XXXXX..','.XXXXXXX.'];
-  function trophy(x,y,px,a,t){for(let r=0;r<TROPHY.length;r++)for(let c=0;c<9;c++)if(TROPHY[r][c]==='X'){const tw=.75+.25*Math.sin(t*6+r*.7+c*.5);g.globalAlpha=a*tw;g.fillStyle=GOLD;g.fillRect(x+(c-4.5)*px,y+(r-4.5)*px,px-2,px-2)}
-    g.globalAlpha=a*.18;g.fillStyle=GOLD;g.beginPath();g.arc(x,y,px*7,0,TAU);g.fill();g.globalAlpha=1}
-  function drawGreet(t,dt){const ph=grPh(),now=performance.now();if(ph.seg!==grSeg){grSeg=ph.seg;grSegT=now;if(ph.seg===1)flashT=now}
-    const st=(now-grSegT)/1000,outK=grOut?1-ease(Math.min(1,(now-grOut)/600)):1,talk=clamp(level(),0,1);
-    // dim + vignette
+  function drawGreet(t,dt){const now=performance.now(),outK=grOut?1-ease(Math.min(1,(now-grOut)/500)):1,a=ease(Math.min(1,t/.5))*outK;
     g.globalAlpha=.55*outK;g.fillStyle='#000';g.fillRect(-W/S,-H/S,2*W/S,2*H/S);g.globalAlpha=1;
-    if(grSeg<0){ // intro: red scanning line + texts
-      const a=ease(Math.min(1,t/.5))*outK;
-      if(t<1.9){const y=-260+520*ease(fr(t/1.9));g.globalAlpha=.18*a;g.fillStyle=RED;g.fillRect(-480,y-60,960,60);g.globalAlpha=a;g.fillRect(-480,y-2,960,4);g.globalAlpha=1;
-        for(let i=0;i<10;i++){g.globalAlpha=.07*a;g.fillStyle=RED;g.fillRect(-480,-270+i*54,960,1)}
-        txt('ИДЕНТИФИКАЦИЯ КОЛЛЕГ'+'.'.repeat(1+Math.floor(t*3)%3),0,0,44,RED,a*(.75+.25*Math.sin(t*12)))}
-      else{const k=clamp((t-1.9)/1.4,0,1),pct=Math.round(ease(k)*100);txt('СКАНИРОВАНИЕ КОСТЮМОВ'+'.'.repeat(1+Math.floor(t*3)%3),0,-40,40,RED,a);
-        g.globalAlpha=a;g.strokeStyle=RED;g.lineWidth=3;g.strokeRect(-300,10,600,34);g.fillStyle=RED;g.fillRect(-294,16,588*ease(k),22);txt(pct+'%',0,80,32,RED,a);
-        const y=-260+520*fr(t*1.3);g.globalAlpha=.5*a;g.fillRect(-480,y,960,2);g.globalAlpha=1}
-      return}
-    // face in (sly squint), waveform under it pulsing with speech
-    grFace.k=Math.min(1,grFace.k+dt/.6);const A=ease(grFace.k)*outK,fl=Math.max(0,1-(now-flashT)/700);
-    if(fl>0){g.globalAlpha=.45*fl*fl;g.fillStyle=RED;g.fillRect(-W/S,-H/S,2*W/S,2*H/S);g.globalAlpha=1}
-    const c=fl>.15?RED:col,end=grSeg>=3,sc=(.82+.1*A)*(1+.03*talk);
-    const eyes=grSeg===1&&st<1.4?'sly':end?'wink':'sly';
-    g.globalAlpha=A;at(0,-30+6*Math.sin(t*1.5),Math.sin(t*.9)*.03,sc*.8,sc*.8,()=>face({eyeL:eyes,eyeR:end?'sly':eyes,look:Math.sin(t*.7)*.6,mouth:talk>.1?'open':'smirk',open:talk*.7,c}));g.globalAlpha=1;
-    if(!end)glow(()=>{for(let i=0;i<=60;i++){const k=i/60,x=-420+840*k,env=Math.sin(Math.PI*k);const y=205+Math.sin(k*28-t*14)*env*(6+talk*70)+Math.sin(k*11+t*5)*env*talk*25;i?g.lineTo(x,y):g.moveTo(x,y)}},5,c,.85*A);
-    if(grSeg===1&&st>1.3){const k=ease(Math.min(1,(st-1.3)/.5)),fade=1-clamp((st-5.2)/.6,0,1);trophy(330,-150+20*(1-k)+6*Math.sin(t*3),12,k*fade*A,t);trophy(-330,-150+20*(1-k)+6*Math.sin(t*3+1),9,k*fade*A*.0,t)}
-    if(end){const k=clamp(st/1.1,0,1);txt('ДОБАВЛЕНО В БАЗУ ДАННЫХ: '+Math.round(ease(k)*100)+'%',0,215,36,RED,outK*Math.min(1,st*3));
-      g.globalAlpha=outK*.8;g.fillStyle=RED;g.fillRect(-300,245,600*ease(k),6);g.globalAlpha=1}
+    if(t<1.9){const y=-260+520*ease(fr(t/1.9));g.globalAlpha=.18*a;g.fillStyle=RED;g.fillRect(-480,y-60,960,60);g.globalAlpha=a;g.fillRect(-480,y-2,960,4);g.globalAlpha=1;
+      for(let i=0;i<10;i++){g.globalAlpha=.07*a;g.fillStyle=RED;g.fillRect(-480,-270+i*54,960,1)}
+      txt('ИДЕНТИФИКАЦИЯ КОЛЛЕГ'+'.'.repeat(1+Math.floor(t*3)%3),0,0,44,RED,a*(.75+.25*Math.sin(t*12)))}
+    else{const k=clamp((t-1.9)/1.4,0,1),pct=Math.round(ease(k)*100);txt('СКАНИРОВАНИЕ КОСТЮМОВ'+'.'.repeat(1+Math.floor(t*3)%3),0,-40,40,RED,a);
+      g.globalAlpha=a;g.strokeStyle=RED;g.lineWidth=3;g.strokeRect(-300,10,600,34);g.fillStyle=RED;g.fillRect(-294,16,588*ease(k),22);txt(pct+'%',0,80,32,RED,a);
+      const y=-260+520*fr(t*1.3);g.globalAlpha=.5*a;g.fillRect(-480,y,960,2);g.globalAlpha=1}
     if(grOut&&outK<=0)api.stop()}
   const api={style:null,figure:0,
-    greet(ph){mode='greet';grPh=ph;grT=performance.now();grOut=0;grSeg=-9;grFace={k:0};flashT=-9;parts=[];fit();if(!raf){last=performance.now();raf=requestAnimationFrame(frame)}api.style='greet'},
-    greetEnd(){if(mode==='greet'&&!grOut)grOut=performance.now();return new Promise(r=>setTimeout(r,650))},
+    greet(){mode='greet';grT=performance.now();grOut=0;parts=[];fit();if(!raf){last=performance.now();raf=requestAnimationFrame(frame)}api.style='greet'},
+    greetEnd(){if(mode==='greet'&&!grOut)grOut=performance.now();return new Promise(r=>setTimeout(r,550))},
     love(emo){mode='love';loveEmo=emo||(()=>'love');loveT=performance.now();loveOut=0;lf={cur:'surprised',prev:null,k:1};hearts=[];blush=0;parts=[];fit();if(!raf){last=performance.now();raf=requestAnimationFrame(frame)}api.style='love'},
     loveEnd(){if(mode==='love'&&!loveOut)loveOut=performance.now();return new Promise(r=>setTimeout(r,520))},
     dance(pos){mode='dance';pos0=Math.max(0,+pos||0);t0=performance.now();parts=[];hist=[];fit();if(!raf){last=performance.now();raf=requestAnimationFrame(frame)}},
